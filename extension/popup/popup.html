@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>UltraSkip</title>
+  <title>UltraTube</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -10,12 +10,12 @@
     <div class="brand">
       <img src="../icons/icon128.png" width="34" height="34" alt="">
       <div>
-        <h1>UltraSkip</h1>
-        <p id="tagline">Реклама, спонсоры, заставки</p>
+        <h1>UltraTube</h1>
+        <p id="tagline">Всё лучшее для YouTube</p>
       </div>
     </div>
-    <label class="power" title="Включить или выключить UltraSkip">
-      <input type="checkbox" data-setting="enabled" aria-label="UltraSkip включён">
+    <label class="power" title="Включить или выключить UltraTube">
+      <input type="checkbox" data-setting="enabled" aria-label="UltraTube включён">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
     </label>
   </header>
@@ -32,6 +32,8 @@
     <!-- Обзор -->
     <section class="panel" role="tabpanel" data-panel="overview">
       <div class="card now" id="now" aria-live="polite"></div>
+
+      <div class="quick" id="quick" role="group" aria-label="Быстрые переключатели"></div>
 
       <div class="card stats">
         <div class="hero">
@@ -102,10 +104,14 @@
             <span class="row-text"><b>Качество по умолчанию</b><small>Лучшее из доступного, не выше выбранного</small></span>
             <select class="select" data-setting-select="ytQuality" aria-label="Качество по умолчанию"></select>
           </div>
-          <div class="row column">
+          <div class="row">
             <span class="row-text"><b>Скорость по умолчанию</b><small>Для отдельных каналов — на вкладке «Обзор»</small></span>
-            <div class="choice" data-choice="ytSpeed" role="group" aria-label="Скорость по умолчанию"></div>
+            <select class="select" data-setting-select="ytSpeed" aria-label="Скорость по умолчанию"></select>
           </div>
+          <label class="row">
+            <span class="row-text"><b>Скорость выше 2×</b><small>До 4× в меню скорости плеера и клавишами Shift+&gt; и Shift+&lt;</small></span>
+            <input type="checkbox" class="switch" data-setting="ytFastSpeed">
+          </label>
           <label class="row">
             <span class="row-text"><b>Кнопка «К главному»</b><small>Метка из SponsorBlock или пик «самых пересматриваемых»</small></span>
             <input type="checkbox" class="switch" data-setting="ytHighlight">
@@ -174,6 +180,10 @@
             <span class="row-text"><b>Скрывать Shorts</b><small>Полки, карточки и вкладка Shorts</small></span>
             <input type="checkbox" class="switch" data-setting="ytHideShorts">
           </label>
+          <label class="row">
+            <span class="row-text"><b>Shorts в обычном плеере</b><small>С перемоткой, скоростью и всеми функциями UltraTube</small></span>
+            <input type="checkbox" class="switch" data-setting="ytShortsAsVideo">
+          </label>
         </div>
       </div>
 
@@ -190,7 +200,10 @@
   </main>
 
   <footer>
-    <button type="button" class="link" id="resetStats">Сбросить статистику</button>
+    <span class="footer-links">
+      <button type="button" class="link" id="openWelcome">О UltraTube</button> ·
+      <button type="button" class="link" id="resetStats">Сбросить статистику</button>
+    </span>
     <span class="sources">
       <a href="https://sponsor.ajay.app" target="_blank" rel="noopener">SponsorBlock</a> ·
       <a href="https://returnyoutubedislike.com" target="_blank" rel="noopener">Return YouTube Dislike</a>

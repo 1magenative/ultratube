@@ -4,10 +4,11 @@ const API = "https://sponsor.ajay.app/api";
 const CACHE_TTL = 10 * 60 * 1000;
 const cache = new Map();
 
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   const settings = await US.getSettings();
   await chrome.storage.sync.set({ settings });
-  chrome.action.setBadgeBackgroundColor({ color: "#7c5cff" });
+  chrome.action.setBadgeBackgroundColor({ color: "#ff3d8b" });
+  if (reason === "install") chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") });
 });
 
 async function sha256Hex(text) {
