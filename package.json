@@ -20,7 +20,7 @@
   "author": "1magenative",
   "type": "module",
   "scripts": {
-    "test": "node --test --test-concurrency=1 tests/",
+    "test": "node --test --test-concurrency=1 'tests/*.test.mjs'",
     "screenshots": "node scripts/screenshots.mjs",
     "pack": "node scripts/pack.mjs",
     "icons": "node scripts/make-icons.mjs"
