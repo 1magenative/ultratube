@@ -33,13 +33,14 @@ const segments = [
   { category: "sponsor", segment: [181, 249], UUID: "demo-1", actionType: "skip" },
   { category: "selfpromo", segment: [610, 652], UUID: "demo-2", actionType: "skip" },
   { category: "interaction", segment: [838, 850], UUID: "demo-3", actionType: "skip" },
+  { category: "poi_highlight", segment: [372, 372], UUID: "demo-4", actionType: "poi" },
 ];
 
 await mkdir(OUT, { recursive: true });
 const context = await chromium.launchPersistentContext("", {
   channel: "chromium",
   headless: true,
-  viewport: { width: 1008, height: 588 },
+  viewport: { width: 1008, height: 680 },
   deviceScaleFactor: 2,
   locale: "ru-RU",
   args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, "--autoplay-policy=no-user-gesture-required"],
@@ -50,6 +51,8 @@ await context.route("https://www.youtube.com/**", async (route) => {
   if (name) return route.fulfill({ body: media[name], contentType: "audio/wav" });
   route.fulfill({ body: await readFile(DEMO), contentType: "text/html" });
 });
+await context.route("https://returnyoutubedislikeapi.com/**", (route) =>
+  route.fulfill({ contentType: "application/json", body: JSON.stringify({ likes: 7100, dislikes: 214 }) }));
 await context.route("https://sponsor.ajay.app/**", (route) => {
   if (route.request().method() === "POST") return route.fulfill({ status: 200, body: "" });
   route.fulfill({ contentType: "application/json", body: JSON.stringify([{ videoID: VIDEO_ID, segments }]) });
@@ -86,6 +89,13 @@ await page.mouse.move(point.x, point.y, { steps: 5 });
 await page.waitForSelector(".us-pill-cat");
 await sleep(300);
 await page.screenshot({ path: shot("hover.png"), clip: playerClip });
+
+// 1б. Кнопка «К главному» в плеере и дизлайки под видео.
+await page.mouse.move(500, 200);
+await page.waitForSelector(".us-highlight-btn");
+await page.waitForSelector(".us-dislikes");
+await sleep(300);
+await page.screenshot({ path: shot("player-extras.png"), clip: { x: 24, y: 24, width: 960, height: 640 } });
 
 // 2. Автопропуск: уведомление справа снизу.
 await page.mouse.move(500, 200);
@@ -126,6 +136,7 @@ const ytPage = await openPlayer();
 await ytPage.evaluate(() => (document.querySelector("video").currentTime = 300));
 const popup = await context.newPage();
 await popup.setViewportSize({ width: 360, height: 600 });
+await worker.evaluate(() => chrome.storage.local.set({ channelSpeeds: { UC_DEMO: { name: "Мастерская", rate: 1.5 } } }));
 await popup.goto(`chrome-extension://${extId}/popup/popup.html`);
 await popup.evaluate(async () => {
   for (const tab of await chrome.tabs.query({})) {
@@ -138,11 +149,17 @@ await popup.evaluate(async () => {
   }
 });
 await popup.waitForFunction(() => document.querySelectorAll(".segments li").length === 3);
-for (const scheme of ["dark", "light"]) {
-  await popup.emulateMedia({ colorScheme: scheme });
-  await sleep(200);
-  await popup.screenshot({ path: shot(`popup-${scheme}.png`), fullPage: true });
+await popup.waitForSelector(".channel");
+await popup.emulateMedia({ colorScheme: "dark" });
+for (const tab of ["overview", "ads", "segments", "player", "view"]) {
+  await popup.click(`[data-tab="${tab}"]`);
+  await sleep(150);
+  await popup.screenshot({ path: shot(`popup-${tab}.png`), fullPage: true });
 }
+await popup.click('[data-tab="overview"]');
+await popup.emulateMedia({ colorScheme: "light" });
+await sleep(200);
+await popup.screenshot({ path: shot("popup-light.png"), fullPage: true });
 
 await context.close();
 console.log("screenshots →", fileURLToPath(OUT));

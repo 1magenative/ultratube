@@ -5,6 +5,17 @@ globalThis.US = {
     ytSkipAds: true,
     ytHidePromos: true,
     ytHideShorts: false,
+    ytQuality: "auto",
+    ytSpeed: null,
+    ytHighlight: true,
+    ytNonstop: true,
+    ytNoAutoplay: false,
+    ytDislikes: true,
+    hideRecs: false,
+    hideComments: false,
+    hideEndCards: false,
+    hideHomeFeed: false,
+    fakePremium: false,
     sbEnabled: true,
     sbModes: {
       sponsor: "auto",
@@ -34,6 +45,18 @@ globalThis.US = {
     music_offtopic: { name: "Не музыка", color: "#ff9900" },
   },
 
+  QUALITIES: {
+    auto: "Не менять",
+    max: "Максимальное",
+    hd2160: "4K",
+    hd1440: "1440p",
+    hd1080: "1080p",
+    hd720: "720p",
+    large: "480p",
+  },
+
+  SPEEDS: [1, 1.25, 1.5, 1.75, 2],
+
   MODES: {
     auto: "Авто",
     manual: "Кнопка",
@@ -60,6 +83,10 @@ globalThis.US = {
     const m = Math.floor((sec % 3600) / 60);
     const s = String(sec % 60).padStart(2, "0");
     return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+  },
+
+  formatCount(n) {
+    return new Intl.NumberFormat("ru", { notation: "compact", maximumFractionDigits: 1 }).format(n);
   },
 
   formatDuration(sec) {

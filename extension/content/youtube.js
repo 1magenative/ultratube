@@ -24,10 +24,33 @@
   const modeOf = (seg) => settings.sbModes[seg.category] ?? "off";
   const sbActive = () => settings.enabled && settings.sbEnabled;
 
+  let channelSpeeds = {};
+
   function applyClasses() {
-    root.classList.toggle("us-hide-promos", settings.enabled && settings.ytHidePromos);
-    root.classList.toggle("us-hide-shorts", settings.enabled && settings.ytHideShorts);
-    root.classList.toggle("us-ad-cloak", settings.enabled && settings.ytSpeedAds);
+    const classes = {
+      "us-hide-promos": settings.ytHidePromos,
+      "us-hide-shorts": settings.ytHideShorts,
+      "us-ad-cloak": settings.ytSpeedAds,
+      "us-hide-recs": settings.hideRecs,
+      "us-hide-comments": settings.hideComments,
+      "us-hide-endcards": settings.hideEndCards,
+      "us-hide-home": settings.hideHomeFeed,
+      "us-fake-premium": settings.fakePremium,
+    };
+    for (const [name, on] of Object.entries(classes)) root.classList.toggle(name, settings.enabled && on);
+    publishConfig();
+  }
+
+  // Качество, скорость и «не останавливать» применяет youtube-main.js — только у него есть доступ к API плеера.
+  function publishConfig() {
+    root.dataset.usConfig = JSON.stringify({
+      enabled: settings.enabled,
+      quality: settings.ytQuality,
+      speed: settings.ytSpeed,
+      channelSpeeds: Object.fromEntries(Object.entries(channelSpeeds).map(([id, c]) => [id, c.rate])),
+      nonstop: settings.ytNonstop,
+      noAutoplay: settings.ytNoAutoplay,
+    });
   }
   applyClasses();
 
@@ -36,6 +59,15 @@
     applyClasses();
     loadSegments();
   });
+  chrome.storage.local.get("channelSpeeds").then((data) => {
+    channelSpeeds = data.channelSpeeds ?? {};
+    publishConfig();
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== "local" || !changes.channelSpeeds) return;
+    channelSpeeds = changes.channelSpeeds.newValue ?? {};
+    publishConfig();
+  });
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "sync" || !changes.settings) return;
@@ -43,9 +75,11 @@
     settings = US.merge(changes.settings.newValue);
     applyClasses();
     if (!settings.enabled && ad) finishAd(getVideo(getPlayer()));
+    if (prev.ytDislikes !== settings.ytDislikes || prev.enabled !== settings.enabled) loadDislikes();
     const sbChanged =
       prev.enabled !== settings.enabled ||
       prev.sbEnabled !== settings.sbEnabled ||
+      prev.ytHighlight !== settings.ytHighlight ||
       US.activeCategories(prev).join() !== US.activeCategories(settings).join();
     if (sbChanged) loadSegments();
     else {
@@ -127,6 +161,7 @@
 
   let videoId;
   let segments = [];
+  let highlight = null;
   let loadToken = 0;
   let scheduled = 0;
 
@@ -142,16 +177,19 @@
     const token = ++loadToken;
     videoId = currentVideoId();
     segments = [];
+    highlight = null;
     renderBar();
     hideToast();
-    const categories = US.activeCategories(settings);
-    if (!videoId || !sbActive() || !categories.length) {
+    const categories = sbActive() ? US.activeCategories(settings) : [];
+    const wantHighlight = settings.enabled && settings.ytHighlight;
+    if (!videoId || (!categories.length && !wantHighlight)) {
       if (window === top) send({ type: "clearBadge" });
       return;
     }
-    const res = await send({ type: "segments", videoId, categories });
+    const res = await send({ type: "segments", videoId, categories, highlight: wantHighlight });
     if (token !== loadToken) return;
     segments = (res?.segments ?? []).map((s) => ({ ...s, done: false, undone: false, prompted: false }));
+    if (res?.highlight) highlight = { start: res.highlight.start, source: "sponsorblock" };
     renderBar();
     checkSegments();
   }
@@ -229,7 +267,8 @@
   function renderBar() {
     const player = getPlayer();
     player?.querySelector(".us-bar")?.remove();
-    if (!player || !sbActive() || !settings.sbBar || !segments.length) {
+    const showSegments = sbActive() && settings.sbBar && segments.length;
+    if (!player || (!showSegments && !highlight)) {
       player?.querySelectorAll(".us-tip, .us-pill-cat").forEach((el) => el.remove());
       hoverIndex = -1;
       return;
@@ -242,7 +281,7 @@
     const bar = document.createElement("div");
     bar.className = "us-bar";
     bar.dataset.duration = duration;
-    for (const seg of segments) {
+    for (const seg of showSegments ? segments : []) {
       const mark = document.createElement("div");
       mark.className = "us-bar-seg";
       mark.style.left = `${(seg.start / duration) * 100}%`;
@@ -251,12 +290,18 @@
       mark.classList.toggle("us-hover", segments.indexOf(seg) === hoverIndex);
       bar.append(mark);
     }
+    if (highlight) {
+      const poi = document.createElement("div");
+      poi.className = "us-bar-poi";
+      poi.style.left = `${(highlight.start / duration) * 100}%`;
+      bar.append(poi);
+    }
     host.append(bar);
   }
 
   function ensureBar(player, video) {
     bindHover(player);
-    if (!segments.length || !settings.sbBar || !sbActive()) return;
+    if (!(segments.length && settings.sbBar && sbActive()) && !highlight) return;
     // Длительность у YouTube «плавает» на доли секунды — перерисовываем только при заметной разнице.
     const bar = player.querySelector(".us-bar");
     if (!bar || !(Math.abs(Number(bar.dataset.duration) - video.duration) < 1)) renderBar();
@@ -440,6 +485,134 @@
     toast.run();
   }, true);
 
+  // ---------- «К главному» ----------
+
+  // Если в SponsorBlock нет метки «главное», берём пик графика «самых пересматриваемых» моментов,
+  // который YouTube рисует над полосой прогресса. Первые 5% видео не учитываем — там почти всегда всплеск.
+  function heatmapPeak(player, duration) {
+    const bar = player.querySelector(".ytp-progress-bar")?.getBoundingClientRect();
+    if (!bar?.width) return null;
+    let best = null;
+    for (const chapter of player.querySelectorAll(".ytp-heat-map-chapter")) {
+      const d = chapter.querySelector(".ytp-heat-map-path")?.getAttribute("d");
+      if (!d) continue;
+      const left = parseFloat(chapter.style.left) || 0;
+      const width = parseFloat(chapter.style.width) || 0;
+      const nums = d.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [];
+      for (let i = 0; i + 1 < nums.length; i += 2) {
+        const fraction = (left + (nums[i] / 1000) * width) / bar.width;
+        const intensity = 100 - nums[i + 1];
+        if (fraction < 0.05 || fraction > 0.98) continue;
+        if (!best || intensity > best.intensity) best = { fraction, intensity };
+      }
+    }
+    return best && best.intensity > 0 ? { start: best.fraction * duration, source: "heatmap" } : null;
+  }
+
+  function ensureHighlight(player, video) {
+    const wanted = settings.enabled && settings.ytHighlight;
+    if (wanted && (!highlight || highlight.source === "heatmap") && Number.isFinite(video.duration)) {
+      const peak = heatmapPeak(player, video.duration);
+      if (peak && Math.abs((highlight?.start ?? -10) - peak.start) > 1) {
+        highlight = peak;
+        renderBar();
+      }
+    }
+
+    let btn = player.querySelector(".us-highlight-btn");
+    const host = player.querySelector(".ytp-right-controls");
+    if (!wanted || !highlight || !host || isAdShowing(player)) return btn?.remove();
+    if (!btn) {
+      btn = h("button", "ytp-button us-highlight-btn",
+        svg("0 0 24 24", ["path", { d: "M13 2 4 14h7l-1 8 9-12h-7z" }]),
+        h("span", "us-highlight-label", "К главному"));
+      btn.type = "button";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        jumpToHighlight();
+      });
+      host.prepend(btn);
+    }
+    const title = `К главному — ${US.formatClock(highlight.start)} (${highlight.source === "sponsorblock" ? "SponsorBlock" : "самые пересматриваемые"})`;
+    if (btn.title !== title) {
+      btn.title = title;
+      btn.setAttribute("aria-label", title);
+    }
+  }
+
+  function jumpToHighlight() {
+    const video = getVideo(getPlayer());
+    if (!video || !highlight) return false;
+    video.currentTime = highlight.start;
+    return true;
+  }
+
+  // ---------- Дизлайки (Return YouTube Dislike) ----------
+
+  let dislikes = null;
+  let dislikeToken = 0;
+
+  async function loadDislikes() {
+    const token = ++dislikeToken;
+    const id = currentVideoId();
+    dislikes = id ? { videoId: id, count: null } : null;
+    renderDislikes();
+    if (!id || !settings.enabled || !settings.ytDislikes) return;
+    const res = await send({ type: "dislikes", videoId: id });
+    if (token !== dislikeToken || !res || res.error) return;
+    dislikes = { videoId: id, count: res.dislikes, likes: res.likes };
+    renderDislikes();
+  }
+
+  function renderDislikes() {
+    const player = getPlayer();
+    const show = settings.enabled && settings.ytDislikes && dislikes?.count != null && dislikes.videoId === currentVideoId();
+    for (const btn of document.querySelectorAll("dislike-button-view-model button")) {
+      if (player?.contains(btn)) continue;
+      let label = btn.querySelector(".us-dislikes");
+      if (!show) {
+        if (label) {
+          label.remove();
+          btn.classList.replace("ytSpecButtonShapeNextIconLeading", "ytSpecButtonShapeNextIconButton");
+        }
+        continue;
+      }
+      if (!label) {
+        // Повторяем разметку кнопки «Нравится»: иконка слева, текст справа.
+        label = h("div", "ytSpecButtonShapeNextButtonTextContent us-dislikes");
+        const icon = btn.querySelector(".ytSpecButtonShapeNextIcon");
+        if (icon) icon.after(label);
+        else btn.append(label);
+        btn.classList.replace("ytSpecButtonShapeNextIconButton", "ytSpecButtonShapeNextIconLeading");
+      }
+      const text = US.formatCount(dislikes.count);
+      if (label.textContent !== text) label.textContent = text;
+    }
+  }
+
+  // ---------- «Продолжить просмотр?» ----------
+
+  // Основная защита — в youtube-main.js (window._lact). Если окно всё же появилось, а пользователь
+  // ничего не нажимал последние секунды и видео на паузе, подтверждаем сами.
+  let lastUserInput = 0;
+  for (const ev of ["pointerdown", "keydown"]) {
+    addEventListener(ev, (e) => e.isTrusted && (lastUserInput = Date.now()), true);
+  }
+
+  function dismissStillWatching(video) {
+    if (!settings.enabled || !settings.ytNonstop || Date.now() - lastUserInput < 3000 || !video.paused) return;
+    const dialog = [...document.querySelectorAll("ytd-popup-container yt-confirm-dialog-renderer, ytmusic-you-there-renderer")]
+      .find((el) => el.offsetParent !== null);
+    if (!dialog) return;
+    // По приоритету: querySelector со списком вернул бы первый элемент по порядку в документе — обёртку, а не кнопку.
+    const button = ["#confirm-button button", ".yt-button-renderer button", "button"]
+      .map((sel) => dialog.querySelector(sel))
+      .find(Boolean);
+    if (!button) return;
+    button.click();
+    video.play().catch(() => {});
+  }
+
   // ---------- Главный цикл ----------
 
   let observedPlayer = null;
@@ -448,6 +621,8 @@
   function tick() {
     if (!alive()) return;
     if (currentVideoId() !== videoId) loadSegments();
+    if (currentVideoId() !== (dislikes?.videoId ?? null)) loadDislikes();
+    renderDislikes();
 
     const player = getPlayer();
     const video = getVideo(player);
@@ -461,7 +636,9 @@
     watchVideo(video);
     if (settings.enabled) adTick(player, video);
     ensureBar(player, video);
+    ensureHighlight(player, video);
     checkSegments();
+    dismissStillWatching(video);
   }
 
   setInterval(tick, 250);
@@ -474,10 +651,21 @@
           site: "youtube",
           videoId,
           skipModule: root.dataset.ultraskipMain === "1",
+          channel: (() => {
+            try {
+              return JSON.parse(root.dataset.usChannel || "null");
+            } catch {
+              return null;
+            }
+          })(),
+          highlight,
+          dislikes: dislikes?.count ?? null,
           duration: getVideo(player)?.duration || 0,
           adShowing: Boolean(player && isAdShowing(player)),
           segments: segments.map((s) => ({ category: s.category, start: s.start, end: s.end, done: s.done, mode: modeOf(s) })),
         });
+      } else if (msg.type === "highlight") {
+        reply({ ok: jumpToHighlight() });
       } else if (msg.type === "seek") {
         const video = getVideo(getPlayer());
         const seg = segments.find((s) => s.start === msg.time);

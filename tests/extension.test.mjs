@@ -11,7 +11,7 @@ const SHOTS = new URL("./screenshots/", import.meta.url);
 const VIDEO_ID = "TESTVIDEO01";
 
 let context, worker, extId;
-const api = { requests: [], viewed: [] };
+const api = { requests: [], viewed: [], dislikes: [] };
 
 function wav(seconds, rate = 8000) {
   const data = Buffer.alloc(seconds * rate, 128);
@@ -72,7 +72,7 @@ before(async () => {
     args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`, "--autoplay-policy=no-user-gesture-required"],
   });
 
-  await context.route("https://www.youtube.com/**", async (route) => {
+  const youtube = async (route) => {
     const url = new URL(route.request().url());
     const name = url.pathname.match(/^\/__media\/(\w+)\.wav$/)?.[1];
     if (name) return route.fulfill({ body: media[name], contentType: "audio/wav" });
@@ -83,6 +83,12 @@ before(async () => {
       });
     }
     route.fulfill({ body: await readFile(new URL("youtube.html", FIXTURES)), contentType: "text/html" });
+  };
+  await context.route("https://www.youtube.com/**", youtube);
+  await context.route("https://music.youtube.com/**", youtube);
+  await context.route("https://returnyoutubedislikeapi.com/**", (route) => {
+    api.dislikes.push(new URL(route.request().url()).searchParams.get("videoId"));
+    route.fulfill({ contentType: "application/json", body: JSON.stringify({ id: VIDEO_ID, likes: 1200, dislikes: 3456 }) });
   });
   await context.route("https://www.netflix.com/**", async (route) =>
     route.fulfill({ body: await readFile(new URL("netflix.html", FIXTURES)), contentType: "text/html" }));
@@ -102,6 +108,7 @@ before(async () => {
             { category: "sponsor", segment: [10, 20], UUID: "seg-sponsor", actionType: "skip" },
             { category: "selfpromo", segment: [40, 46], UUID: "seg-selfpromo", actionType: "skip" },
             { category: "interaction", segment: [70, 75], UUID: "seg-interaction", actionType: "skip" },
+            { category: "poi_highlight", segment: [95, 95], UUID: "seg-poi", actionType: "poi" },
           ],
         },
         { videoID: "OTHERVIDEO1", segments: [{ category: "sponsor", segment: [1, 2], UUID: "x", actionType: "skip" }] },
@@ -249,7 +256,8 @@ test("SponsorBlock: запрос по префиксу хэша, цветные 
   const req = api.requests[0];
   const prefix = createHash("sha256").update(VIDEO_ID).digest("hex").slice(0, 4);
   assert.equal(req.pathname, `/api/skipSegments/${prefix}`, "ID видео не уходит на сервер");
-  assert.deepEqual(JSON.parse(req.searchParams.get("categories")), ["sponsor", "selfpromo", "interaction"]);
+  assert.deepEqual(JSON.parse(req.searchParams.get("categories")), ["sponsor", "selfpromo", "interaction", "poi_highlight"]);
+  assert.deepEqual(JSON.parse(req.searchParams.get("actionTypes")), ["skip", "poi"]);
 
   const marks = await page.evaluate(() =>
     [...document.querySelectorAll(".us-bar-seg")].map((m) => ({ left: m.style.left, bg: getComputedStyle(m).backgroundColor })));
@@ -386,6 +394,114 @@ test("SponsorBlock: смена видео без перезагрузки стр
   await page.close();
 });
 
+test("«К главному»: метка SponsorBlock — кнопка в плеере и метка на полосе", async () => {
+  const page = await openYouTube();
+  const title = await waitFor(() => page.evaluate(() => document.querySelector(".us-highlight-btn")?.title));
+  assert.match(title, /1:35/);
+  assert.match(title, /SponsorBlock/);
+  assert.ok(await page.evaluate(() => document.querySelector(".us-bar-poi")));
+  await page.click(".us-highlight-btn");
+  await waitFor(() => page.evaluate(() => Math.abs(document.querySelector("video").currentTime - 95) < 1));
+  await page.close();
+});
+
+test("«К главному» без метки: пик графика «самых пересматриваемых»", async () => {
+  const page = await openYouTube("HEATMAPVID1");
+  await sleep(500);
+  assert.equal(await page.evaluate(() => document.querySelector(".us-highlight-btn")), null, "нет данных — нет кнопки");
+  // Пик на 60% длины: x=600 из 1000, y=5 из 100 (чем меньше y, тем выше пик).
+  await page.evaluate(() => yt.setHeatmap("M 0,100 C 100,90 200,10 300,60 C 400,80 500,40 600,5 C 700,40 800,70 1000,100"));
+  const title = await waitFor(() => page.evaluate(() => document.querySelector(".us-highlight-btn")?.title));
+  assert.match(title, /1:12/);
+  assert.match(title, /пересматриваемые/);
+  await page.close();
+});
+
+test("«Продолжить просмотр?» подтверждается само, если пользователь ничего не нажимал", async () => {
+  const page = await openYouTube();
+  await sleep(3200);
+  await page.evaluate(() => yt.showStillWatching());
+  await waitFor(() => page.evaluate(() => yt.stillConfirmed === 1));
+  await waitFor(() => page.evaluate(() => !document.querySelector("video").paused));
+  await page.close();
+});
+
+test("автовоспроизведение следующего видео выключается по настройке", async () => {
+  const page = await openYouTube();
+  await sleep(1200);
+  assert.equal(await page.evaluate(() => document.querySelector(".ytp-autonav-toggle-button").getAttribute("aria-checked")), "true");
+  await setSettings({ ytNoAutoplay: true });
+  await waitFor(() => page.evaluate(() => document.querySelector(".ytp-autonav-toggle-button").getAttribute("aria-checked") === "false"));
+  await setSettings({ ytNoAutoplay: false });
+  await page.close();
+});
+
+test("дизлайки из Return YouTube Dislike показываются на кнопке и убираются по настройке", async () => {
+  const page = await openYouTube();
+  const text = await waitFor(() => page.evaluate(() => document.querySelector("dislike-button-view-model .us-dislikes")?.textContent));
+  assert.match(text, /^3,5\s?тыс\.$/);
+  assert.ok(api.dislikes.includes(VIDEO_ID));
+  assert.ok(await page.evaluate(() => document.querySelector("dislike-button-view-model button").classList.contains("ytSpecButtonShapeNextIconLeading")));
+  await setSettings({ ytDislikes: false });
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-dislikes")));
+  await setSettings({ ytDislikes: true });
+  await page.close();
+});
+
+test("«Без отвлекающего»: лента, рекомендации, комментарии, карточки скрываются по настройкам", async () => {
+  const page = await openYouTube();
+  const hidden = () => page.evaluate(() =>
+    ["homefeed", "related", "comments", "endcard"].map((id) => getComputedStyle(document.getElementById(id)).display === "none"));
+  assert.deepEqual(await hidden(), [false, false, false, false]);
+  await setSettings({ hideHomeFeed: true, hideRecs: true, hideComments: true, hideEndCards: true });
+  await waitFor(async () => (await hidden()).every(Boolean));
+  await setSettings({ hideHomeFeed: false, hideRecs: false, hideComments: false, hideEndCards: false });
+  await waitFor(async () => !(await hidden()).some(Boolean));
+  await page.close();
+});
+
+test("главная без дыр: спрятанная реклама не оставляет пустое место перед полкой", async () => {
+  const page = await openYouTube();
+  const layout = () => page.evaluate(() => {
+    const items = [...document.querySelectorAll("#grid ytd-rich-item-renderer")]
+      .filter((el) => getComputedStyle(el).display !== "none")
+      .map((el) => ({ text: el.textContent.trim(), y: Math.round(el.getBoundingClientRect().y), x: Math.round(el.getBoundingClientRect().x) }));
+    const shelf = document.getElementById("shelf").getBoundingClientRect();
+    return { items, shelfY: Math.round(shelf.y), shelfW: Math.round(shelf.width) };
+  });
+  const { items, shelfY, shelfW } = await layout();
+  assert.equal(items.length, 7, "рекламная карточка скрыта");
+  const before = items.filter((i) => i.y < shelfY);
+  assert.equal(before.length, 6, `перед полкой два полных ряда, а не ${before.length} карточек`);
+  assert.equal(new Set(before.map((i) => i.x)).size, 3, "три ровные колонки");
+  assert.equal(shelfW, 900, "полка на всю ширину");
+  await page.close();
+});
+
+test("Fake Premium: надпись у логотипов YouTube и YouTube Music по настройке", async () => {
+  const page = await openYouTube();
+  const read = () => page.evaluate(() => ({
+    yt: getComputedStyle(document.querySelector("ytd-topbar-logo-renderer .yt-icon-shape"), "::after").content,
+    music: getComputedStyle(document.querySelector("ytmusic-logo a"), "::after").content,
+    country: getComputedStyle(document.getElementById("country-code")).display,
+  }));
+  assert.deepEqual(await read(), { yt: "none", music: "none", country: "inline" });
+  await setSettings({ fakePremium: true });
+  await waitFor(async () => (await read()).yt === '"Premium"');
+  assert.deepEqual(await read(), { yt: '"Premium"', music: '"Premium"', country: "none" });
+  await setSettings({ fakePremium: false });
+  await page.close();
+});
+
+test("YouTube Music: реклама тоже пропускается", async () => {
+  const page = await context.newPage();
+  await page.goto(`https://music.youtube.com/watch?v=${VIDEO_ID}`);
+  await page.evaluate(() => yt.ready);
+  await page.evaluate(() => yt.startAd());
+  await waitFor(() => page.evaluate(() => yt.apiSkips === 1), { timeout: 3000 });
+  await page.close();
+});
+
 test("Netflix: заставка пропускается, «Следующая серия» — только если включено", async () => {
   const page = await context.newPage();
   await page.goto("https://www.netflix.com/watch/1");
@@ -436,18 +552,36 @@ test("попап: статистика, статус вкладки, перек�
   await popup.emulateMedia({ colorScheme: "light" });
   await popup.screenshot({ path: fileURLToPath(new URL("popup-light.png", SHOTS)), fullPage: true });
 
+  await popup.click('[data-tab="view"]');
+  assert.equal(await popup.isVisible('[data-panel="view"]'), true);
+  assert.equal(await popup.isVisible('[data-panel="overview"]'), false);
   await popup.click('label:has([data-setting="ytHideShorts"])');
+  await popup.click('[data-tab="segments"]');
   await popup.click('.modes button[data-category="intro"][data-mode="auto"]');
+  await popup.click('[data-tab="player"]');
+  await popup.selectOption('[data-setting-select="ytQuality"]', "hd720");
+  await popup.click('[data-choice="ytSpeed"] button[data-value="1.25"]');
   const saved = await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings);
   assert.equal(saved.ytHideShorts, true);
   assert.equal(saved.sbModes.intro, "auto");
+  assert.equal(saved.ytQuality, "hd720");
+  assert.equal(saved.ytSpeed, 1.25);
+  await waitFor(() => yt.evaluate(() => yt.quality === "hd720" && document.querySelector("video").playbackRate === 1.25));
+
+  // Скорость для канала задаётся прямо из «Обзора» и важнее общей.
+  await popup.click('[data-tab="overview"]');
+  await popup.click('.channel .choice button:has-text("2×")');
+  await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.local.get("channelSpeeds")).channelSpeeds?.UC_TEST?.rate)) === 2);
+  await waitFor(() => yt.evaluate(() => document.querySelector("video").playbackRate === 2));
+  await popup.click('.channel .choice button:has-text("Обычная")');
+  await waitFor(() => yt.evaluate(() => document.querySelector("video").playbackRate === 1.25));
 
   await popup.click('.power');
   assert.equal(await popup.evaluate(() => document.body.classList.contains("off")), true);
   await waitFor(() => yt.evaluate(() => !document.querySelector(".us-bar")));
   await popup.click('.power');
 
-  await setSettings({ ytHideShorts: false, sbModes: await worker.evaluate(() => US.DEFAULTS.sbModes) });
+  await setSettings({ ytHideShorts: false, ytQuality: "auto", ytSpeed: null, sbModes: await worker.evaluate(() => US.DEFAULTS.sbModes) });
   await yt.close();
   await popup.close();
 });

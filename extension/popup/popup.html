@@ -20,88 +20,181 @@
     </label>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Разделы">
+    <button type="button" role="tab" data-tab="overview">Обзор</button>
+    <button type="button" role="tab" data-tab="ads">Реклама</button>
+    <button type="button" role="tab" data-tab="segments">Вставки</button>
+    <button type="button" role="tab" data-tab="player">Плеер</button>
+    <button type="button" role="tab" data-tab="view">Вид</button>
+  </nav>
+
   <main>
-    <section class="card now" id="now" aria-live="polite"></section>
+    <!-- Обзор -->
+    <section class="panel" role="tabpanel" data-panel="overview">
+      <div class="card now" id="now" aria-live="polite"></div>
 
-    <section class="card stats">
-      <div class="hero">
-        <span class="label">Сэкономлено времени</span>
-        <span class="hero-value" id="savedTotal">0 с</span>
-        <span class="hero-sub" id="savedToday">сегодня 0 с</span>
-      </div>
-      <div class="tiles">
-        <div class="tile"><b id="statAds">0</b><span>реклам</span></div>
-        <div class="tile"><b id="statSegs">0</b><span>вставок</span></div>
-        <div class="tile"><b id="statIntros">0</b><span>заставок</span></div>
-      </div>
-    </section>
-
-    <section class="group">
-      <h2><span class="tag tag-yt"></span>YouTube · реклама</h2>
-      <div class="card list">
-        <label class="row">
-          <span class="row-text"><b>Пропускать рекламу сразу</b><small>Командой плеера, не дожидаясь кнопки «Пропустить»</small></span>
-          <input type="checkbox" class="switch" data-setting="ytSkipAds">
-        </label>
-        <label class="row">
-          <span class="row-text"><b>Ускорять, если не пропустилась</b><small>×16 без звука, картинка закрыта</small></span>
-          <input type="checkbox" class="switch" data-setting="ytSpeedAds">
-        </label>
-        <label class="row">
-          <span class="row-text"><b>Скрывать промо-блоки</b><small>Рекламные карточки в ленте, поиске и под плеером</small></span>
-          <input type="checkbox" class="switch" data-setting="ytHidePromos">
-        </label>
-        <label class="row">
-          <span class="row-text"><b>Скрывать Shorts</b><small>Полки и карточки Shorts</small></span>
-          <input type="checkbox" class="switch" data-setting="ytHideShorts">
-        </label>
-      </div>
-    </section>
-
-    <section class="group">
-      <h2><span class="tag tag-sb"></span>Спонсорские вставки</h2>
-      <div class="card list">
-        <label class="row">
-          <span class="row-text"><b>Пропускать вставки</b><small>Таймкоды из открытой базы SponsorBlock</small></span>
-          <input type="checkbox" class="switch" data-setting="sbEnabled">
-        </label>
-        <div class="row column" data-depends="sbEnabled">
-          <span class="row-text"><b>Категории</b><small>Авто — сразу · Кнопка — спросить (Enter) · Метка — только на полосе</small></span>
-          <div class="cats" id="categories"></div>
+      <div class="card stats">
+        <div class="hero">
+          <span class="label">Сэкономлено времени</span>
+          <span class="hero-value" id="savedTotal">0 с</span>
+          <span class="hero-sub" id="savedToday">сегодня 0 с</span>
         </div>
-        <label class="row" data-depends="sbEnabled">
-          <span class="row-text"><b>Отрезки на полосе прогресса</b><small>Цвет категории и подсказка при наведении</small></span>
-          <input type="checkbox" class="switch" data-setting="sbBar">
-        </label>
-        <label class="row" data-depends="sbEnabled">
-          <span class="row-text"><b>Уведомление при пропуске</b><small>Справа снизу, «Назад» по Enter</small></span>
-          <input type="checkbox" class="switch" data-setting="sbToast">
-        </label>
+        <div class="tiles">
+          <div class="tile"><b id="statAds">0</b><span>реклам</span></div>
+          <div class="tile"><b id="statSegs">0</b><span>вставок</span></div>
+          <div class="tile"><b id="statIntros">0</b><span>заставок</span></div>
+        </div>
       </div>
     </section>
 
-    <section class="group">
-      <h2><span class="tag tag-nf"></span>Netflix</h2>
-      <div class="card list">
-        <label class="row">
-          <span class="row-text"><b>Пропускать заставку</b></span>
-          <input type="checkbox" class="switch" data-setting="nfSkipIntro">
-        </label>
-        <label class="row">
-          <span class="row-text"><b>Пропускать «Ранее в сериале»</b></span>
-          <input type="checkbox" class="switch" data-setting="nfSkipRecap">
-        </label>
-        <label class="row">
-          <span class="row-text"><b>Сразу следующая серия</b><small>Не ждать обратного отсчёта</small></span>
-          <input type="checkbox" class="switch" data-setting="nfNextEpisode">
-        </label>
+    <!-- Реклама -->
+    <section class="panel" role="tabpanel" data-panel="ads" hidden>
+      <div class="group">
+        <h2><span class="tag tag-yt"></span>YouTube и YouTube Music</h2>
+        <div class="card list">
+          <label class="row">
+            <span class="row-text"><b>Пропускать рекламу сразу</b><small>Командой плеера, не дожидаясь кнопки «Пропустить»</small></span>
+            <input type="checkbox" class="switch" data-setting="ytSkipAds">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Ускорять, если не пропустилась</b><small>×16 без звука, картинка закрыта</small></span>
+            <input type="checkbox" class="switch" data-setting="ytSpeedAds">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Скрывать промо-блоки</b><small>Рекламные карточки в ленте, поиске, под плеером и баннеры Premium</small></span>
+            <input type="checkbox" class="switch" data-setting="ytHidePromos">
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Вставки -->
+    <section class="panel" role="tabpanel" data-panel="segments" hidden>
+      <div class="group">
+        <h2><span class="tag tag-sb"></span>Спонсорские вставки</h2>
+        <div class="card list">
+          <label class="row">
+            <span class="row-text"><b>Пропускать вставки</b><small>Таймкоды из открытой базы SponsorBlock</small></span>
+            <input type="checkbox" class="switch" data-setting="sbEnabled">
+          </label>
+          <div class="row column" data-depends="sbEnabled">
+            <span class="row-text"><b>Категории</b><small>Авто — сразу · Кнопка — спросить (Enter) · Метка — только на полосе</small></span>
+            <div class="cats" id="categories"></div>
+          </div>
+          <label class="row" data-depends="sbEnabled">
+            <span class="row-text"><b>Отрезки на полосе прогресса</b><small>Цвет категории и подсказка при наведении</small></span>
+            <input type="checkbox" class="switch" data-setting="sbBar">
+          </label>
+          <label class="row" data-depends="sbEnabled">
+            <span class="row-text"><b>Уведомление при пропуске</b><small>Справа снизу, «Назад» по Enter</small></span>
+            <input type="checkbox" class="switch" data-setting="sbToast">
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Плеер -->
+    <section class="panel" role="tabpanel" data-panel="player" hidden>
+      <div class="group">
+        <h2><span class="tag tag-yt"></span>Как в Premium</h2>
+        <div class="card list">
+          <div class="row">
+            <span class="row-text"><b>Качество по умолчанию</b><small>Лучшее из доступного, не выше выбранного</small></span>
+            <select class="select" data-setting-select="ytQuality" aria-label="Качество по умолчанию"></select>
+          </div>
+          <div class="row column">
+            <span class="row-text"><b>Скорость по умолчанию</b><small>Для отдельных каналов — на вкладке «Обзор»</small></span>
+            <div class="choice" data-choice="ytSpeed" role="group" aria-label="Скорость по умолчанию"></div>
+          </div>
+          <label class="row">
+            <span class="row-text"><b>Кнопка «К главному»</b><small>Метка из SponsorBlock или пик «самых пересматриваемых»</small></span>
+            <input type="checkbox" class="switch" data-setting="ytHighlight">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Не останавливать</b><small>Без «Видео приостановлено. Продолжить просмотр?»</small></span>
+            <input type="checkbox" class="switch" data-setting="ytNonstop">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Не включать следующее видео</b><small>Выключает автовоспроизведение</small></span>
+            <input type="checkbox" class="switch" data-setting="ytNoAutoplay">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Показывать дизлайки</b><small>Оценка Return YouTube Dislike</small></span>
+            <input type="checkbox" class="switch" data-setting="ytDislikes">
+          </label>
+        </div>
+      </div>
+
+      <div class="group" id="channelGroup" hidden>
+        <h2><span class="tag tag-yt"></span>Скорость по каналам</h2>
+        <div class="card list" id="channelList"></div>
+      </div>
+
+      <div class="group">
+        <h2><span class="tag tag-nf"></span>Netflix</h2>
+        <div class="card list">
+          <label class="row">
+            <span class="row-text"><b>Пропускать заставку</b></span>
+            <input type="checkbox" class="switch" data-setting="nfSkipIntro">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Пропускать «Ранее в сериале»</b></span>
+            <input type="checkbox" class="switch" data-setting="nfSkipRecap">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Сразу следующая серия</b><small>Не ждать обратного отсчёта</small></span>
+            <input type="checkbox" class="switch" data-setting="nfNextEpisode">
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Вид -->
+    <section class="panel" role="tabpanel" data-panel="view" hidden>
+      <div class="group">
+        <h2><span class="tag tag-view"></span>Без отвлекающего</h2>
+        <div class="card list">
+          <label class="row">
+            <span class="row-text"><b>Скрывать ленту на главной</b><small>Главная без рекомендаций — только поиск и подписки</small></span>
+            <input type="checkbox" class="switch" data-setting="hideHomeFeed">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Скрывать рекомендации</b><small>Колонка «Следующее» рядом с видео</small></span>
+            <input type="checkbox" class="switch" data-setting="hideRecs">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Скрывать комментарии</b></span>
+            <input type="checkbox" class="switch" data-setting="hideComments">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Скрывать заставки и карточки</b><small>Подсказки поверх видео и сетка роликов в конце</small></span>
+            <input type="checkbox" class="switch" data-setting="hideEndCards">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Скрывать Shorts</b><small>Полки, карточки и вкладка Shorts</small></span>
+            <input type="checkbox" class="switch" data-setting="ytHideShorts">
+          </label>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2><span class="tag tag-yt"></span>Оформление</h2>
+        <div class="card list">
+          <label class="row">
+            <span class="row-text"><b>Логотип Premium</b><small>Только надпись «Premium» у логотипа YouTube и YouTube Music — подписка от этого не появится</small></span>
+            <input type="checkbox" class="switch" data-setting="fakePremium">
+          </label>
+        </div>
       </div>
     </section>
   </main>
 
   <footer>
     <button type="button" class="link" id="resetStats">Сбросить статистику</button>
-    <a href="https://sponsor.ajay.app" target="_blank" rel="noopener">Данные: SponsorBlock</a>
+    <span class="sources">
+      <a href="https://sponsor.ajay.app" target="_blank" rel="noopener">SponsorBlock</a> ·
+      <a href="https://returnyoutubedislike.com" target="_blank" rel="noopener">Return YouTube Dislike</a>
+    </span>
   </footer>
 
   <script src="../shared/defaults.js"></script>

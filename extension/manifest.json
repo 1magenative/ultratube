@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "UltraSkip",
-  "version": "1.0.0",
-  "description": "Ускоряет и пропускает рекламу YouTube, вырезает спонсорские вставки (SponsorBlock) и заставки Netflix.",
+  "version": "1.1.0",
+  "description": "Мгновенно пропускает рекламу YouTube, вырезает спонсорские вставки, возвращает дизлайки, пропускает заставки Netflix.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -24,13 +24,15 @@
     "storage"
   ],
   "host_permissions": [
-    "https://sponsor.ajay.app/*"
+    "https://sponsor.ajay.app/*",
+    "https://returnyoutubedislikeapi.com/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://www.youtube.com/*",
         "https://m.youtube.com/*",
+        "https://music.youtube.com/*",
         "https://www.youtube-nocookie.com/*"
       ],
       "js": [
@@ -47,6 +49,7 @@
       "matches": [
         "https://www.youtube.com/*",
         "https://m.youtube.com/*",
+        "https://music.youtube.com/*",
         "https://www.youtube-nocookie.com/*"
       ],
       "js": [

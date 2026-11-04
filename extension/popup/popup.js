@@ -1,5 +1,6 @@
 const $ = (sel) => document.querySelector(sel);
 let settings;
+let channelSpeeds = {};
 let lastStatus = "";
 
 function el(tag, props = {}, ...children) {
@@ -33,6 +34,13 @@ function renderSettings() {
   for (const btn of document.querySelectorAll(".modes button")) {
     btn.setAttribute("aria-pressed", settings.sbModes[btn.dataset.category] === btn.dataset.mode);
   }
+  for (const select of document.querySelectorAll("[data-setting-select]")) {
+    select.value = settings[select.dataset.settingSelect];
+  }
+  for (const btn of document.querySelectorAll("[data-choice] button")) {
+    const key = btn.parentElement.dataset.choice;
+    btn.setAttribute("aria-pressed", String(settings[key] ?? "") === btn.dataset.value);
+  }
   document.body.classList.toggle("off", !settings.enabled);
   $("#tagline").textContent = settings.enabled ? "Реклама, спонсоры, заставки" : "На паузе";
 }
@@ -56,6 +64,80 @@ function buildCategories() {
       el("span", { className: "cat-name" }, cat.name),
       modes));
   }
+}
+
+function buildPlayerControls() {
+  const quality = document.querySelector('[data-setting-select="ytQuality"]');
+  for (const [value, label] of Object.entries(US.QUALITIES)) quality.append(el("option", { value }, label));
+  quality.addEventListener("change", () => {
+    settings.ytQuality = quality.value;
+    save();
+  });
+
+  const speed = document.querySelector('[data-choice="ytSpeed"]');
+  for (const value of [null, ...US.SPEEDS]) {
+    const btn = el("button", { type: "button" }, value == null ? "Не менять" : `${value}×`);
+    btn.dataset.value = value ?? "";
+    btn.addEventListener("click", () => {
+      settings.ytSpeed = value;
+      save();
+    });
+    speed.append(btn);
+  }
+}
+
+// ---------- Вкладки ----------
+
+function bindTabs() {
+  let saved = "overview";
+  try {
+    saved = localStorage.getItem("us-tab") || saved;
+  } catch {}
+  const show = (name) => {
+    for (const tab of document.querySelectorAll("[data-tab]")) {
+      const on = tab.dataset.tab === name;
+      tab.setAttribute("aria-selected", on);
+      tab.tabIndex = on ? 0 : -1;
+    }
+    for (const panel of document.querySelectorAll("[data-panel]")) panel.hidden = panel.dataset.panel !== name;
+    try {
+      localStorage.setItem("us-tab", name);
+    } catch {}
+  };
+  const tabs = [...document.querySelectorAll("[data-tab]")];
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => show(tab.dataset.tab));
+    tab.addEventListener("keydown", (e) => {
+      const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      if (!step) return;
+      const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length];
+      next.focus();
+      show(next.dataset.tab);
+    });
+  }
+  show(tabs.some((t) => t.dataset.tab === saved) ? saved : "overview");
+}
+
+// ---------- Скорость по каналам ----------
+
+async function setChannelSpeed(channel, rate) {
+  const next = { ...channelSpeeds };
+  if (rate == null) delete next[channel.id];
+  else next[channel.id] = { name: channel.name, rate };
+  await chrome.storage.local.set({ channelSpeeds: next });
+}
+
+function renderChannelList() {
+  const entries = Object.entries(channelSpeeds).sort((a, b) => a[1].name.localeCompare(b[1].name, "ru"));
+  $("#channelGroup").hidden = !entries.length;
+  $("#channelList").replaceChildren(...entries.map(([id, c]) => {
+    const remove = el("button", { type: "button", className: "icon-btn", title: "Убрать", ariaLabel: `Убрать скорость для ${c.name}` }, "✕");
+    remove.addEventListener("click", () => setChannelSpeed({ id, name: c.name }, null));
+    return el("div", { className: "row" },
+      el("span", { className: "row-text" }, el("b", {}, c.name)),
+      el("span", { className: "channel-rate" }, `${c.rate}×`),
+      remove);
+  }));
 }
 
 // ---------- Статистика ----------
@@ -105,7 +187,7 @@ async function refreshNow() {
       status = await chrome.tabs.sendMessage(tab.id, { type: "status" }, { frameId: 0 });
     } catch {}
   }
-  const key = JSON.stringify([status, settings.enabled, settings.sbEnabled]);
+  const key = JSON.stringify([status, settings.enabled, settings.sbEnabled, channelSpeeds]);
   if (key === lastStatus) return;
   lastStatus = key;
   renderNow(status, tab);
@@ -129,7 +211,6 @@ function renderNow(status, tab) {
 }
 
 function renderNowBody(status, tab, box, note) {
-
   if (!settings.enabled) {
     box.append(nowHead("UltraSkip на паузе", "idle"), note("Включите кнопкой справа вверху"));
     return;
@@ -143,50 +224,73 @@ function renderNowBody(status, tab, box, note) {
     return;
   }
   if (status.adShowing) {
-    box.append(nowHead("Идёт реклама", "ad"), note("Ускоряем и жмём «Пропустить»…"));
+    box.append(nowHead("Идёт реклама", "ad"), note("Пропускаем…"));
     return;
   }
   if (!status.videoId) {
-    box.append(nowHead("YouTube", ""), note("Реклама ускоряется, промо-блоки скрыты"));
-    return;
-  }
-  if (!settings.sbEnabled) {
-    box.append(nowHead("Это видео", ""), note("Пропуск спонсорских вставок выключен"));
+    box.append(nowHead("YouTube", ""), note("Реклама пропускается, промо-блоки скрыты"));
     return;
   }
 
-  const segs = status.segments;
-  if (!segs.length) {
-    box.append(nowHead("Это видео", ""), note("В базе SponsorBlock нет вставок для этого видео"));
-    return;
-  }
+  const send = (msg) => chrome.tabs.sendMessage(tab.id, msg, { frameId: 0 }).catch(() => {});
+  const segs = settings.sbEnabled ? status.segments : [];
+  const count = segs.length
+    ? el("span", { className: "seg-time" }, `${segs.length} ${plural(segs.length, "вставка", "вставки", "вставок")}`)
+    : null;
+  box.append(nowHead("Это видео", "", count));
 
-  const count = el("span", { className: "seg-time" }, `${segs.length} ${plural(segs.length, "вставка", "вставки", "вставок")}`);
-  const list = el("ul", { className: "segments" });
-  for (const seg of segs) {
-    const cat = US.CATEGORIES[seg.category] ?? { name: seg.category, color: "#fff" };
-    const btn = el("button", { type: "button", title: "Перейти к началу вставки" },
-      el("span", { className: "dot", style: `background:${cat.color}` }),
-      el("span", { className: "seg-name" }, cat.name),
-      seg.done
-        ? el("span", { className: "seg-done" }, "пропущено")
-        : el("span", { className: "seg-mode" }, US.MODES[seg.mode]?.toLowerCase() ?? ""),
-      el("span", { className: "seg-time" }, `${US.formatClock(seg.start)} – ${US.formatClock(seg.end)}`));
-    btn.addEventListener("click", () => {
-      chrome.tabs.sendMessage(tab.id, { type: "seek", time: seg.start }, { frameId: 0 }).catch(() => {});
-    });
-    list.append(el("li", {}, btn));
-  }
-  box.append(nowHead("Это видео", "", count), list);
-
-  if (status.duration > 0) {
-    const line = el("div", { className: "timeline", ariaHidden: "true" });
+  if (!settings.sbEnabled) box.append(note("Пропуск спонсорских вставок выключен"));
+  else if (!segs.length) box.append(note("В базе SponsorBlock нет вставок для этого видео"));
+  else {
+    const list = el("ul", { className: "segments" });
     for (const seg of segs) {
-      const left = (seg.start / status.duration) * 100;
-      const width = ((Math.min(seg.end, status.duration) - seg.start) / status.duration) * 100;
-      line.append(el("span", { style: `left:${left}%;width:${width}%;background:${US.CATEGORIES[seg.category]?.color ?? "#fff"}` }));
+      const cat = US.CATEGORIES[seg.category] ?? { name: seg.category, color: "#fff" };
+      const btn = el("button", { type: "button", title: "Перейти к началу вставки" },
+        el("span", { className: "dot", style: `background:${cat.color}` }),
+        el("span", { className: "seg-name" }, cat.name),
+        seg.done
+          ? el("span", { className: "seg-done" }, "пропущено")
+          : el("span", { className: "seg-mode" }, US.MODES[seg.mode]?.toLowerCase() ?? ""),
+        el("span", { className: "seg-time" }, `${US.formatClock(seg.start)} – ${US.formatClock(seg.end)}`));
+      btn.addEventListener("click", () => send({ type: "seek", time: seg.start }));
+      list.append(el("li", {}, btn));
     }
-    box.append(line);
+    box.append(list);
+
+    if (status.duration > 0) {
+      const line = el("div", { className: "timeline", ariaHidden: "true" });
+      for (const seg of segs) {
+        const left = (seg.start / status.duration) * 100;
+        const width = ((Math.min(seg.end, status.duration) - seg.start) / status.duration) * 100;
+        line.append(el("span", { style: `left:${left}%;width:${width}%;background:${US.CATEGORIES[seg.category]?.color ?? "#fff"}` }));
+      }
+      box.append(line);
+    }
+  }
+
+  const chips = el("div", { className: "chips-row" });
+  if (status.highlight) {
+    const jump = el("button", { type: "button", className: "chip-btn chip-accent" }, `⚡ К главному · ${US.formatClock(status.highlight.start)}`);
+    jump.addEventListener("click", () => send({ type: "highlight" }));
+    chips.append(jump);
+  }
+  if (status.dislikes != null) {
+    chips.append(el("span", { className: "chip-btn", title: "Оценка Return YouTube Dislike" }, `👎 ${US.formatCount(status.dislikes)}`));
+  }
+  if (chips.children.length) box.append(chips);
+
+  if (status.channel) {
+    const current = channelSpeeds[status.channel.id]?.rate ?? null;
+    const choice = el("div", { className: "choice small", role: "group", ariaLabel: "Скорость на канале" });
+    for (const value of [null, ...US.SPEEDS]) {
+      const btn = el("button", { type: "button" }, value == null ? "Обычная" : `${value}×`);
+      btn.setAttribute("aria-pressed", current === value);
+      btn.addEventListener("click", () => setChannelSpeed(status.channel, value));
+      choice.append(btn);
+    }
+    box.append(el("div", { className: "channel" },
+      el("span", { className: "channel-title" }, "Скорость на канале ", el("b", {}, status.channel.name)),
+      choice));
   }
 }
 
@@ -195,7 +299,11 @@ function renderNowBody(status, tab, box, note) {
 (async () => {
   settings = await US.getSettings();
   buildCategories();
+  buildPlayerControls();
+  bindTabs();
   renderSettings();
+  ({ channelSpeeds = {} } = await chrome.storage.local.get("channelSpeeds"));
+  renderChannelList();
 
   for (const input of document.querySelectorAll("[data-setting]")) {
     input.addEventListener("change", () => {
@@ -209,6 +317,11 @@ function renderNowBody(status, tab, box, note) {
   renderStats(stats);
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.stats) renderStats(changes.stats.newValue);
+    if (area === "local" && changes.channelSpeeds) {
+      channelSpeeds = changes.channelSpeeds.newValue ?? {};
+      renderChannelList();
+      refreshNow();
+    }
   });
   bindReset();
 
