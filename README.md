@@ -186,7 +186,7 @@ npm run icons         # нарезать иконки из docs/brand (фон у
 
 ### Фирменный стиль
 
-Исходники лежат в [`docs/brand/`](docs/brand): основная иконка, упрощённая для 16–32 px, баннер и фон страницы приветствия. Они сгенерированы в Nano Banana. Палитра: индиго `#5B5CFF` → маджента `#FF3D8B`, акцент `#FFC24D`. Баннер подходит как social preview репозитория (Settings → Social preview).
+Исходники лежат в [`docs/brand/`](docs/brand): основная иконка, упрощённая для 16–32 px, баннер и фон страницы приветствия. Они сгенерированы в Nano Banana. Палитра: индиго `#5B5CFF` → маджента `#FF3D8B`, акцент `#FFC24D`. Для превью репозитория (Settings → Social preview) — [`social-preview.png`](docs/brand/social-preview.png): тот же баннер в PNG 1280×640, GitHub не принимает webp.
 
 ## Ограничения
 
