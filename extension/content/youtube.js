@@ -36,6 +36,7 @@
       "us-hide-endcards": settings.hideEndCards,
       "us-hide-home": settings.hideHomeFeed,
       "us-fake-premium": settings.fakePremium,
+      "us-fast-speed": settings.ytFastSpeed,
     };
     for (const [name, on] of Object.entries(classes)) root.classList.toggle(name, settings.enabled && on);
     publishConfig();
@@ -57,6 +58,7 @@
   US.getSettings().then((s) => {
     settings = s;
     applyClasses();
+    redirectShorts();
     loadSegments();
   });
   chrome.storage.local.get("channelSpeeds").then((data) => {
@@ -613,6 +615,163 @@
     video.play().catch(() => {});
   }
 
+  // ---------- Скорость выше 2× ----------
+
+  // Плеер YouTube зажимает скорость до 2× (3× у него — только для Premium), а <video> держит любую.
+  // Поэтому кнопки скорости выше 2× обрабатываем сами и показываем в панели настоящую скорость.
+  const RATE_STEP = 0.25;
+  const FAST_CHIPS = [2.5, 3, 3.5, 4];
+  const fastOn = () => settings.enabled && settings.ytFastSpeed;
+  const clampRate = (r) => Math.round(Math.min(US.MAX_RATE, Math.max(0.25, r)) * 100) / 100;
+
+  function setRate(rate) {
+    const video = getVideo(getPlayer());
+    if (!video) return;
+    rate = clampRate(rate);
+    root.dataset.usRate = String(rate);
+    window.dispatchEvent(new CustomEvent("ultraskip:set-rate"));
+    if (video.playbackRate !== rate) video.playbackRate = rate;
+    showSpeedBezel(rate);
+    syncSpeedPanel();
+  }
+
+  let bezelTimer = 0;
+  function showSpeedBezel(rate) {
+    const player = getPlayer();
+    if (!player) return;
+    let bezel = player.querySelector(".us-speed-bezel");
+    if (!bezel) {
+      bezel = h("div", "us-speed-bezel");
+      player.append(bezel);
+    }
+    bezel.textContent = `${rate.toLocaleString("ru")}×`;
+    bezel.classList.add("us-show");
+    clearTimeout(bezelTimer);
+    bezelTimer = setTimeout(() => bezel.classList.remove("us-show"), 900);
+  }
+
+  function syncSpeedPanel() {
+    const player = getPlayer();
+    const video = getVideo(player);
+    if (!player || !video) return;
+    const rate = video.playbackRate;
+    const panel = player.querySelector(".ytp-variable-speed-panel-content");
+    let row = panel?.querySelector(".us-speed-chips");
+    if (!fastOn()) return row?.remove();
+
+    if (panel && !row) {
+      row = h("div", "us-speed-chips", h("span", "us-speed-chips-label", "UltraTube"));
+      for (const value of FAST_CHIPS) {
+        const btn = h("button", "ytp-button us-speed-chip", value.toLocaleString("ru", { minimumFractionDigits: 1 }));
+        btn.type = "button";
+        btn.dataset.rate = value;
+        row.append(btn);
+      }
+      const chips = panel.querySelector(".ytp-variable-speed-panel-chips");
+      if (chips) chips.after(row);
+      else panel.append(row);
+    }
+    for (const btn of row?.querySelectorAll(".us-speed-chip") ?? []) {
+      btn.classList.toggle("us-active", Number(btn.dataset.rate) === rate);
+    }
+    if (row) growForRow(player, panel, row);
+    // Плеер не знает о скоростях выше 2× и не перерисовывает табло, когда «его» скорость не менялась, —
+    // поэтому пишем настоящую скорость сами: в панели и в пункте меню.
+    const text = `${rate.toFixed(2)}x`;
+    for (const el of panel?.querySelectorAll(".ytp-variable-speed-panel-display span, .ytp-speedslider-text") ?? []) {
+      if (el.textContent !== text) el.textContent = text;
+    }
+    const item = [...player.querySelectorAll(".ytp-settings-menu .ytp-menuitem")]
+      .find((el) => /скорость|speed/i.test(el.querySelector(".ytp-menuitem-label")?.textContent ?? ""));
+    const content = item?.querySelector(".ytp-menuitem-content");
+    if (!content) return;
+    if (rate === 1 && !content.dataset.usChanged) normalSpeedLabel = content.textContent;
+    const label = rate === 1 && normalSpeedLabel ? normalSpeedLabel : String(rate);
+    if (rate > 2 || content.dataset.usChanged) {
+      if (content.textContent !== label) content.textContent = label;
+      content.dataset.usChanged = rate > 2 ? "1" : "";
+    }
+  }
+  let normalSpeedLabel = "";
+
+  // YouTube задаёт меню, панели и блоку скорости фиксированную высоту — прибавляем к ней наш ряд.
+  // Меню прижато к низу плеера, поэтому оно растёт вверх.
+  function growForRow(player, panel, row) {
+    const extra = row.offsetHeight + 14;
+    if (!row.offsetHeight) return;
+    const menu = panel.closest(".ytp-settings-menu");
+    for (const el of [menu, panel.closest(".ytp-panel"), panel]) {
+      const height = el?.style.height;
+      if (!height || el.dataset.usGrownTo === height) continue;
+      const grown = `${parseFloat(height) + extra}px`;
+      el.style.height = grown;
+      el.dataset.usGrownTo = grown;
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!fastOn()) return;
+    const target = e.target.closest?.(".us-speed-chip, .ytp-variable-speed-panel-preset-button, .ytp-variable-speed-panel-increment-button");
+    const video = getVideo(getPlayer());
+    if (!target || !video) return;
+    const rate = video.playbackRate;
+    let next = null;
+    if (target.classList.contains("us-speed-chip")) {
+      next = Number(target.dataset.rate);
+    } else if (target.querySelector(".ytp-variable-speed-panel-premium-upsell-icon") ||
+      (rate > 2 && target.classList.contains("ytp-variable-speed-panel-preset-button"))) {
+      // Пока видео быстрее 2×, плеер считает, что стоит 2× — и «2,0» у него ничего бы не изменила.
+      next = parseFloat(target.textContent.replace(",", "."));
+    } else if (target.classList.contains("ytp-variable-speed-panel-increment-button")) {
+      const up = target.textContent.trim() === "+";
+      if (up && rate >= 2) next = rate + RATE_STEP;
+      else if (!up && rate > 2) next = rate - RATE_STEP;
+    }
+    // Остальное (обычные скорости до 2×) — штатная логика YouTube.
+    if (next == null || Number.isNaN(next)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    setRate(next);
+  }, true);
+
+  // Shift+> и Shift+< — штатные клавиши скорости; выше 2× продолжаем их сами.
+  document.addEventListener("keydown", (e) => {
+    if (!fastOn() || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.code !== "Period" && e.code !== "Comma") return;
+    const target = e.composedPath()[0];
+    if (target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName)) return;
+    const video = getVideo(getPlayer());
+    if (!video) return;
+    const up = e.code === "Period";
+    if (up ? video.playbackRate < 2 : video.playbackRate <= 2) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    setRate(video.playbackRate + (up ? RATE_STEP : -RATE_STEP));
+  }, true);
+
+  // ---------- Shorts в обычном плеере ----------
+
+  const shortsId = (path) => path.match(/^\/shorts\/([\w-]{11})/)?.[1];
+
+  function redirectShorts() {
+    if (window !== top || !settings.enabled || !settings.ytShortsAsVideo) return;
+    const id = shortsId(location.pathname);
+    if (id) location.replace(`/watch?v=${id}`);
+  }
+
+  // Переход по ссылке на Shorts перехватываем до того, как YouTube откроет свою ленту Shorts.
+  document.addEventListener("click", (e) => {
+    if (!settings.enabled || !settings.ytShortsAsVideo || e.button !== 0) return;
+    const link = e.target.closest?.('a[href*="/shorts/"]');
+    const id = link && shortsId(new URL(link.href, location.href).pathname);
+    if (!id) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const url = `/watch?v=${id}`;
+    if (e.ctrlKey || e.metaKey) window.open(url, "_blank");
+    else location.assign(url);
+  }, true);
+
   // ---------- Главный цикл ----------
 
   let observedPlayer = null;
@@ -620,6 +779,7 @@
 
   function tick() {
     if (!alive()) return;
+    redirectShorts();
     if (currentVideoId() !== videoId) loadSegments();
     if (currentVideoId() !== (dislikes?.videoId ?? null)) loadDislikes();
     renderDislikes();
@@ -637,6 +797,7 @@
     if (settings.enabled) adTick(player, video);
     ensureBar(player, video);
     ensureHighlight(player, video);
+    syncSpeedPanel();
     checkSegments();
     dismissStillWatching(video);
   }

@@ -21,6 +21,22 @@
       </div>
     </div>
     <div class="ytp-ce-element" id="endcard">Карточка</div>
+    <div class="ytp-settings-menu" style="position:absolute;right:10px;bottom:60px;width:300px;height:250px;overflow:hidden;background:#222;color:#fff">
+      <div class="ytp-popup-content"><div class="ytp-panel" style="height:250px">
+        <div class="ytp-panel-menu"><div class="ytp-menuitem"><div class="ytp-menuitem-label">Скорость воспроизведения</div><div class="ytp-menuitem-content">Обычная</div></div></div>
+        <div class="ytp-variable-speed-panel-content" style="height:193px">
+          <div class="ytp-variable-speed-panel-display"><span>1.00x</span></div>
+          <button class="ytp-button ytp-variable-speed-panel-increment-button" id="speedMinus"><span>-</span></button>
+          <button class="ytp-button ytp-variable-speed-panel-increment-button" id="speedPlus"><span>+</span></button>
+          <div class="ytp-variable-speed-panel-chips">
+            <div class="ytp-variable-speed-panel-preset-button-wrapper"><button class="ytp-button ytp-variable-speed-panel-preset-button"><span>1,0</span></button></div>
+            <div class="ytp-variable-speed-panel-preset-button-wrapper"><button class="ytp-button ytp-variable-speed-panel-preset-button"><span>1,5</span></button></div>
+            <div class="ytp-variable-speed-panel-preset-button-wrapper"><button class="ytp-button ytp-variable-speed-panel-preset-button" id="chip2"><span>2,0</span></button></div>
+            <div class="ytp-variable-speed-panel-preset-button-wrapper" id="premiumWrapper"><button class="ytp-button ytp-variable-speed-panel-preset-button" id="chipPremium"><div class="ytp-variable-speed-panel-premium-upsell-icon">P</div><span>3,0</span></button></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
     <div class="ytp-tooltip" style="display:none;position:absolute;bottom:60px;background:#222;padding:4px 8px;border-radius:8px">
       <div class="ytp-tooltip-text-wrapper">
         <div class="ytp-tooltip-progress-bar-pill" style="display:flex;gap:8px;align-items:center">
@@ -62,6 +78,7 @@
       <ytd-rich-item-renderer class="g" style="display:block;width:calc(33.33% - 16px);margin:0 16px 20px 0;height:60px">8</ytd-rich-item-renderer>
     </div>
   </ytd-rich-grid-renderer>
+  <a id="shortslink" href="/shorts/OTHERVIDEO1">Shorts</a>
   <ytd-popup-container>
     <yt-confirm-dialog-renderer style="display:none">
       <span>Видео приостановлено. Продолжить просмотр?</span>
@@ -81,7 +98,26 @@
     player.getAvailableQualityLevels = () => ["hd1080", "hd720", "large", "medium", "auto"];
     player.setPlaybackQualityRange = (quality) => (yt.quality = quality);
     player.getPreferredQuality = () => yt.quality ?? "auto";
-    player.setPlaybackRate = (rate) => (video.playbackRate = rate);
+    // Как настоящий плеер: своя скорость не выше 2×, а повторная установка «той же» скорости ничего не меняет.
+    let ytRate = 1;
+    const speedDisplay = player.querySelector(".ytp-variable-speed-panel-display span");
+    player.getPlaybackRate = () => ytRate;
+    player.setPlaybackRate = (rate) => {
+      rate = Math.min(2, Math.max(0.25, rate));
+      if (rate === ytRate) return;
+      ytRate = rate;
+      video.playbackRate = rate;
+      speedDisplay.textContent = `${rate.toFixed(2)}x`;
+    };
+    yt.upsell = 0;
+    for (const chip of player.querySelectorAll(".ytp-variable-speed-panel-preset-button")) {
+      chip.addEventListener("click", () => {
+        if (chip.querySelector(".ytp-variable-speed-panel-premium-upsell-icon")) yt.upsell++;
+        else player.setPlaybackRate(parseFloat(chip.textContent.replace(",", ".")));
+      });
+    }
+    document.getElementById("speedPlus").addEventListener("click", () => player.setPlaybackRate(ytRate + 0.05));
+    document.getElementById("speedMinus").addEventListener("click", () => player.setPlaybackRate(ytRate - 0.05));
 
     const autonav = player.querySelector(".ytp-autonav-toggle");
     autonav.addEventListener("click", () => {

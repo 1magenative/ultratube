@@ -132,7 +132,7 @@
     if (channel) {
       const rate = config.channelSpeeds?.[details.channelId] ?? config.speed;
       if (rate && applied.speed !== rate) {
-        player.setPlaybackRate(rate);
+        setRate(player, rate);
         applied.speed = rate;
       }
     }
@@ -148,6 +148,25 @@
     }
   }
   setInterval(tick, 500);
+
+  // Плеер YouTube не даёт скорость выше 2×, а сам <video> умеет до 16×. Для таких скоростей ставим плееру 2×,
+  // чтобы его интерфейс был ближе к правде, а видео — нужную скорость напрямую.
+  function setRate(player, rate) {
+    const video = player.querySelector("video");
+    if (rate <= 2) {
+      player.setPlaybackRate(rate);
+      if (video && video.playbackRate !== rate) video.playbackRate = rate;
+    } else {
+      player.setPlaybackRate(2);
+      if (video) video.playbackRate = rate;
+    }
+  }
+
+  window.addEventListener("ultraskip:set-rate", () => {
+    const player = document.querySelector("#movie_player");
+    const rate = Number(root.dataset.usRate);
+    if (typeof player?.setPlaybackRate === "function" && rate > 0) setRate(player, rate);
+  });
 
   // «Видео приостановлено. Продолжить просмотр?» YouTube показывает, когда давно не было действий пользователя;
   // время последнего действия плеер берёт из window._lact.

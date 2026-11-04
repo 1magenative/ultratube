@@ -161,5 +161,16 @@ await popup.emulateMedia({ colorScheme: "light" });
 await sleep(200);
 await popup.screenshot({ path: shot("popup-light.png"), fullPage: true });
 
+// 6. Страница приветствия.
+const welcome = await context.newPage();
+await welcome.setViewportSize({ width: 1280, height: 820 });
+await welcome.goto(`chrome-extension://${extId}/welcome/welcome.html`);
+await welcome.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+await sleep(500);
+await welcome.screenshot({ path: shot("welcome.png") });
+await welcome.evaluate(() => document.querySelector(".features").scrollIntoView());
+await sleep(300);
+await welcome.screenshot({ path: shot("welcome-features.png") });
+
 await context.close();
 console.log("screenshots →", fileURLToPath(OUT));
