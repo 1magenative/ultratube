@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Mock Netflix</title></head>
+<body>
+  <div id="player"></div>
+  <script>
+    window.nf = { intro: 0, next: 0 };
+    setTimeout(() => {
+      const intro = Object.assign(document.createElement("button"), { textContent: "Skip Intro" });
+      intro.dataset.uia = "player-skip-intro";
+      intro.onclick = () => { nf.intro++; intro.remove(); };
+      const next = Object.assign(document.createElement("button"), { textContent: "Next Episode" });
+      next.dataset.uia = "next-episode-seamless-button";
+      next.onclick = () => nf.next++;
+      document.getElementById("player").append(intro, next);
+    }, 500);
+  </script>
+</body>
+</html>

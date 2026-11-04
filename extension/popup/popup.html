@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>UltraSkip</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="../icons/icon128.png" width="34" height="34" alt="">
+      <div>
+        <h1>UltraSkip</h1>
+        <p id="tagline">Реклама, спонсоры, заставки</p>
+      </div>
+    </div>
+    <label class="power" title="Включить или выключить UltraSkip">
+      <input type="checkbox" data-setting="enabled" aria-label="UltraSkip включён">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8M6.3 6.8a8 8 0 1 0 11.4 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </label>
+  </header>
+
+  <main>
+    <section class="card now" id="now" aria-live="polite"></section>
+
+    <section class="card stats">
+      <div class="hero">
+        <span class="label">Сэкономлено времени</span>
+        <span class="hero-value" id="savedTotal">0 с</span>
+        <span class="hero-sub" id="savedToday">сегодня 0 с</span>
+      </div>
+      <div class="tiles">
+        <div class="tile"><b id="statAds">0</b><span>реклам</span></div>
+        <div class="tile"><b id="statSegs">0</b><span>вставок</span></div>
+        <div class="tile"><b id="statIntros">0</b><span>заставок</span></div>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2><span class="tag tag-yt"></span>YouTube · реклама</h2>
+      <div class="card list">
+        <label class="row">
+          <span class="row-text"><b>Пропускать рекламу сразу</b><small>Командой плеера, не дожидаясь кнопки «Пропустить»</small></span>
+          <input type="checkbox" class="switch" data-setting="ytSkipAds">
+        </label>
+        <label class="row">
+          <span class="row-text"><b>Ускорять, если не пропустилась</b><small>×16 без звука, картинка закрыта</small></span>
+          <input type="checkbox" class="switch" data-setting="ytSpeedAds">
+        </label>
+        <label class="row">
+          <span class="row-text"><b>Скрывать промо-блоки</b><small>Рекламные карточки в ленте, поиске и под плеером</small></span>
+          <input type="checkbox" class="switch" data-setting="ytHidePromos">
+        </label>
+        <label class="row">
+          <span class="row-text"><b>Скрывать Shorts</b><small>Полки и карточки Shorts</small></span>
+          <input type="checkbox" class="switch" data-setting="ytHideShorts">
+        </label>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2><span class="tag tag-sb"></span>Спонсорские вставки</h2>
+      <div class="card list">
+        <label class="row">
+          <span class="row-text"><b>Пропускать вставки</b><small>Таймкоды из открытой базы SponsorBlock</small></span>
+          <input type="checkbox" class="switch" data-setting="sbEnabled">
+        </label>
+        <div class="row column" data-depends="sbEnabled">
+          <span class="row-text"><b>Категории</b><small>Авто — сразу · Кнопка — спросить (Enter) · Метка — только на полосе</small></span>
+          <div class="cats" id="categories"></div>
+        </div>
+        <label class="row" data-depends="sbEnabled">
+          <span class="row-text"><b>Отрезки на полосе прогресса</b><small>Цвет категории и подсказка при наведении</small></span>
+          <input type="checkbox" class="switch" data-setting="sbBar">
+        </label>
+        <label class="row" data-depends="sbEnabled">
+          <span class="row-text"><b>Уведомление при пропуске</b><small>Справа снизу, «Назад» по Enter</small></span>
+          <input type="checkbox" class="switch" data-setting="sbToast">
+        </label>
+      </div>
+    </section>
+
+    <section class="group">
+      <h2><span class="tag tag-nf"></span>Netflix</h2>
+      <div class="card list">
+        <label class="row">
+          <span class="row-text"><b>Пропускать заставку</b></span>
+          <input type="checkbox" class="switch" data-setting="nfSkipIntro">
+        </label>
+        <label class="row">
+          <span class="row-text"><b>Пропускать «Ранее в сериале»</b></span>
+          <input type="checkbox" class="switch" data-setting="nfSkipRecap">
+        </label>
+        <label class="row">
+          <span class="row-text"><b>Сразу следующая серия</b><small>Не ждать обратного отсчёта</small></span>
+          <input type="checkbox" class="switch" data-setting="nfNextEpisode">
+        </label>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <button type="button" class="link" id="resetStats">Сбросить статистику</button>
+    <a href="https://sponsor.ajay.app" target="_blank" rel="noopener">Данные: SponsorBlock</a>
+  </footer>
+
+  <script src="../shared/defaults.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

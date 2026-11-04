@@ -1,0 +1,31 @@
+{
+  "name": "ultra-skip",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension: instant YouTube ad skip, SponsorBlock segments and Netflix intro skip",
+  "keywords": [
+    "chrome-extension",
+    "youtube",
+    "sponsorblock",
+    "adblock",
+    "netflix",
+    "manifest-v3"
+  ],
+  "homepage": "https://github.com/1magenative/ultra-skip#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/1magenative/ultra-skip.git"
+  },
+  "license": "MIT",
+  "author": "1magenative",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/",
+    "screenshots": "node scripts/screenshots.mjs",
+    "pack": "node scripts/pack.mjs",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
+  }
+}

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>UltraSkip demo</title>
+  <style>
+    html, body { margin: 0; background: #0f0f0f; font-family: Roboto, Arial, sans-serif; }
+    #movie_player {
+      position: relative; width: 960px; height: 540px; margin: 24px; overflow: hidden; border-radius: 14px;
+      background:
+        radial-gradient(60% 50% at 75% 30%, rgba(255, 196, 120, 0.85), transparent 70%),
+        radial-gradient(40% 35% at 20% 25%, rgba(130, 170, 255, 0.55), transparent 70%),
+        linear-gradient(180deg, #24304f 0%, #50466e 45%, #c06c6c 75%, #f2a66b 100%);
+    }
+    .scene { position: absolute; inset: auto 0 0 0; height: 55%; }
+    .scene svg { width: 100%; height: 100%; display: block; }
+    video { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+    .gradient { position: absolute; inset: auto 0 0 0; height: 140px; background: linear-gradient(transparent, rgba(0, 0, 0, 0.75)); }
+    .ytp-chrome-bottom { position: absolute; left: 14px; right: 14px; bottom: 0; height: 64px; z-index: 59; }
+    .ytp-progress-bar-container { position: absolute; left: 0; right: 0; top: 0; height: 6px; cursor: pointer; }
+    .ytp-progress-bar { position: relative; height: 100%; background: rgba(255, 255, 255, 0.28); border-radius: 3px; }
+    .played { position: absolute; left: 0; top: 0; bottom: 0; background: #ff2d55; border-radius: 3px; z-index: 39; }
+    .scrubber { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #ff2d55; z-index: 43; }
+    .controls { position: absolute; left: 0; right: 0; bottom: 8px; height: 40px; display: flex; align-items: center; gap: 18px; color: #fff; font-size: 14px; }
+    .controls svg { width: 24px; height: 24px; fill: #fff; }
+    .controls .spacer { flex: 1; }
+    .time { font-variant-numeric: tabular-nums; opacity: 0.95; }
+    .chapter { opacity: 0.8; }
+    .ytp-tooltip { position: absolute; display: none; bottom: 84px; transform: translateX(-50%); z-index: 60; }
+    .ytp-tooltip-progress-bar-pill {
+      display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 999px;
+      background: rgba(20, 20, 24, 0.85); color: #fff; font-size: 13px; white-space: nowrap;
+    }
+    .ytp-skip-ad-button { display: none; }
+  </style>
+</head>
+<body>
+  <div id="movie_player" class="html5-video-player">
+    <div class="scene">
+      <svg viewBox="0 0 960 300" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 210 L120 120 L210 170 L330 70 L460 180 L560 110 L700 190 L820 100 L960 160 V300 H0Z" fill="#3b2f52" opacity="0.85"/>
+        <path d="M0 250 L150 180 L280 230 L420 150 L560 240 L700 170 L860 240 L960 200 V300 H0Z" fill="#251d36"/>
+      </svg>
+    </div>
+    <video class="html5-main-video"></video>
+    <div class="gradient"></div>
+    <div class="ytp-tooltip"><div class="ytp-tooltip-text-wrapper"><div class="ytp-tooltip-progress-bar-pill">
+      <div class="ytp-tooltip-progress-bar-pill-time-stamp">0:00</div>
+      <div class="ytp-tooltip-progress-bar-pill-title">Сборка стенда</div>
+    </div></div></div>
+    <div class="ytp-chrome-bottom">
+      <div class="ytp-progress-bar-container">
+        <div class="ytp-progress-bar"><div class="played"></div><div class="scrubber"></div></div>
+      </div>
+      <div class="controls">
+        <svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M5 10v4h3l4 4V6L8 10zM15 8.5a4.5 4.5 0 0 1 0 7M15 5a8 8 0 0 1 0 14" stroke="#fff" stroke-width="1.6" fill="#fff" fill-opacity="0"/><path d="M5 10v4h3l4 4V6L8 10z"/></svg>
+        <span class="time">0:00 / 0:00</span>
+        <span class="chapter">· Сборка стенда</span>
+        <span class="spacer"></span>
+        <svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M4 9V4h5v2H6v3zm11-5h5v5h-2V6h-3zM4 15h2v3h3v2H4zm14 3v-3h2v5h-5v-2z"/></svg>
+      </div>
+    </div>
+    <button class="ytp-skip-ad-button">Пропустить</button>
+  </div>
+
+  <script>
+    const player = document.getElementById("movie_player");
+    const video = player.querySelector("video");
+    const bar = player.querySelector(".ytp-progress-bar");
+    const tooltip = player.querySelector(".ytp-tooltip");
+    const fmt = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    const media = {};
+    window.demo = { ready: null };
+
+    player.getPlayerResponse = () => ({});
+    player.onAdUxClicked = () => {};
+
+    video.addEventListener("timeupdate", () => {
+      if (!Number.isFinite(video.duration)) return;
+      const f = video.currentTime / video.duration;
+      player.querySelector(".played").style.width = `${f * 100}%`;
+      player.querySelector(".scrubber").style.left = `${f * 100}%`;
+      player.querySelector(".time").textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
+    });
+
+    bar.addEventListener("mousemove", (e) => {
+      const r = bar.getBoundingClientRect();
+      const t = ((e.clientX - r.left) / r.width) * video.duration;
+      tooltip.style.display = "block";
+      tooltip.style.left = `${e.clientX - player.getBoundingClientRect().left}px`;
+      tooltip.querySelector(".ytp-tooltip-progress-bar-pill-time-stamp").textContent = fmt(t);
+    });
+    bar.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
+
+    demo.ready = (async () => {
+      for (const name of ["content", "ad"]) {
+        const res = await fetch(`/__media/${name}.wav`);
+        media[name] = URL.createObjectURL(await res.blob());
+      }
+      video.src = media.content;
+      await video.play();
+    })();
+
+    demo.showAd = async () => {
+      player.classList.add("ad-showing");
+      video.src = media.ad;
+      await video.play();
+    };
+  </script>
+</body>
+</html>

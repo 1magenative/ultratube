@@ -1,0 +1,282 @@
+html.us-hide-promos :is(
+  ytd-ad-slot-renderer,
+  ytd-in-feed-ad-layout-renderer,
+  ytd-promoted-sparkles-web-renderer,
+  ytd-promoted-video-renderer,
+  ytd-compact-promoted-video-renderer,
+  ytd-display-ad-renderer,
+  ytd-banner-promo-renderer,
+  ytd-statement-banner-renderer,
+  ytd-video-masthead-ad-v3-renderer,
+  ytd-primetime-promo-renderer,
+  ytd-search-pyv-renderer,
+  ytd-player-legacy-desktop-watch-ads-renderer,
+  ytd-merch-shelf-renderer,
+  ytd-movie-offer-module-renderer,
+  ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-ads"],
+  ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+  ytd-rich-section-renderer:has(ytd-statement-banner-renderer),
+  #masthead-ad,
+  #player-ads,
+  .ytp-ad-overlay-slot,
+  .ytp-featured-product
+) {
+  display: none !important;
+}
+
+html.us-hide-shorts :is(
+  ytd-reel-shelf-renderer,
+  ytd-rich-shelf-renderer[is-shorts],
+  ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
+  grid-shelf-view-model:has(ytm-shorts-lockup-view-model),
+  ytd-video-renderer:has(a[href^="/shorts/"]),
+  ytd-guide-entry-renderer:has(a[title="Shorts"]),
+  ytd-mini-guide-entry-renderer[aria-label="Shorts"],
+  yt-tab-shape[tab-title="Shorts"]
+) {
+  display: none !important;
+}
+
+/* Реклама: закрываем картинку слоем сверху сразу по классу плеера — раньше, чем успеет сработать скрипт.
+   Само видео не делаем прозрачным: так плеер считает рекламу видимой и не тормозит переход к следующей. */
+
+html.us-ad-cloak .html5-video-player.ad-showing::before {
+  content: "";
+  position: absolute;
+  top: calc(50% - 30px);
+  left: calc(50% - 14px);
+  z-index: 36;
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #8b6cff;
+  border-right-color: #ff4f8b;
+  border-radius: 50%;
+  animation: us-spin 0.7s linear infinite;
+  pointer-events: none;
+}
+
+html.us-ad-cloak .html5-video-player.ad-showing::after {
+  content: "UltraSkip · пропускаем рекламу";
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 48px;
+  background: #000;
+  color: rgba(255, 255, 255, 0.7);
+  font: 500 15px/1.2 "YouTube Sans", Roboto, Arial, sans-serif;
+  pointer-events: none;
+}
+
+@keyframes us-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Повторяем поведение полосы YouTube: в покое она сжата по высоте, при наведении — полная. */
+.us-bar {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  transform: scaleY(0.667);
+  transition: transform 0.2s cubic-bezier(0.05, 0, 0, 1);
+}
+
+.ytp-progress-bar-container:hover .us-bar,
+.ytp-drag .us-bar {
+  transform: none;
+}
+
+.us-bar-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  opacity: 0.85;
+}
+
+.us-bar-seg.us-hover {
+  opacity: 1;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 0 10px currentColor;
+}
+
+.ad-showing .us-bar,
+.ad-showing .us-pill-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.us-tip {
+  display: none;
+}
+
+.us-pill-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.us-tip {
+  position: absolute;
+  z-index: 75;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(18, 18, 24, 0.88);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: 500 13px/1.2 "YouTube Sans", Roboto, Arial, sans-serif;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.us-toast {
+  position: absolute;
+  right: 16px;
+  bottom: 72px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 14px;
+  background: rgba(16, 16, 22, 0.78);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: 500 15px/1.2 "YouTube Sans", Roboto, Arial, sans-serif;
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.3, 0.7, 0.4, 1.2);
+}
+
+.us-toast.us-show {
+  opacity: 1;
+  transform: none;
+}
+
+.ytp-autohide .us-toast {
+  bottom: 24px;
+}
+
+.us-toast-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+
+.us-toast-icon svg,
+.us-toast-close svg {
+  width: 100%;
+  height: 100%;
+}
+
+.us-toast-title {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.us-toast-sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.us-toast button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.us-toast-action {
+  padding: 6px 10px;
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.82) !important;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.us-toast-action:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+}
+
+.us-toast-prompt .us-toast-action {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #111 !important;
+  font-weight: 600 !important;
+}
+
+.us-toast-prompt .us-toast-action:hover {
+  background: #fff !important;
+}
+
+.us-toast-timer {
+  min-width: 34px;
+  padding: 4px 7px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.us-toast-close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 7px !important;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6) !important;
+  transition: background 0.15s, color 0.15s;
+}
+
+.us-toast-close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.us-toast-close:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+}
+
+.us-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.us-muted {
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+}

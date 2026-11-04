@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Mock YouTube</title></head>
+<body style="margin:0;background:#0f0f0f;font-family:sans-serif;color:#fff">
+  <ytd-ad-slot-renderer id="promo">Рекламная карточка</ytd-ad-slot-renderer>
+  <ytd-reel-shelf-renderer id="shorts">Shorts</ytd-reel-shelf-renderer>
+
+  <div id="movie_player" class="html5-video-player" style="position:relative;width:800px;height:450px;margin:40px;background:#000">
+    <video class="html5-main-video" style="width:100%;height:100%"></video>
+    <div class="ytp-chrome-bottom" style="position:absolute;left:12px;right:12px;bottom:44px;height:6px">
+      <div class="ytp-progress-bar" style="position:relative;height:100%;background:rgba(255,255,255,.25)"></div>
+    </div>
+    <div class="ytp-tooltip" style="display:none;position:absolute;bottom:60px;background:#222;padding:4px 8px;border-radius:8px">
+      <div class="ytp-tooltip-text-wrapper">
+        <div class="ytp-tooltip-progress-bar-pill" style="display:flex;gap:8px;align-items:center">
+          <div class="ytp-tooltip-progress-bar-pill-time-stamp">0:00</div>
+          <div class="ytp-tooltip-progress-bar-pill-title">Глава 1</div>
+        </div>
+      </div>
+    </div>
+    <button class="ytp-skip-ad-button" style="display:none;position:absolute;right:0;bottom:80px">Пропустить</button>
+  </div>
+
+  <script>
+    const player = document.getElementById("movie_player");
+    const video = player.querySelector("video");
+    const skip = player.querySelector(".ytp-skip-ad-button");
+    const media = {};
+    window.yt = { skipClicks: 0, apiSkips: 0, apiCalls: 0, noApi: false, resume: 0, ready: null, tooltip: true };
+
+    // Как у настоящего плеера: кнопка «Пропустить» вызывает onAdUxClicked("skip-button", layoutId),
+    // а layoutId текущей рекламы лежит в ответе плеера среди прочих.
+    const AD_LAYOUT = "layout-current-ad";
+    let currentLayout = AD_LAYOUT;
+    player.getPlayerResponse = () => ({
+      adSlots: [{ adSlotRenderer: { fulfillmentContent: { fulfilledLayout: { playerBytesAdLayoutRenderer: { adLayoutMetadata: { layoutId: AD_LAYOUT } } } } } }],
+      other: { layoutId: "layout-something-else" },
+    });
+    player.onAdUxClicked = (type, layoutId) => {
+      if (yt.noApi) return;
+      yt.apiCalls++;
+      if (type === "skip-button" && layoutId === currentLayout && player.classList.contains("ad-showing")) {
+        yt.apiSkips++;
+        yt.endAd();
+      }
+    };
+
+    const bar = player.querySelector(".ytp-progress-bar");
+    const tooltip = player.querySelector(".ytp-tooltip");
+    bar.addEventListener("mousemove", (e) => {
+      if (!yt.tooltip) return;
+      const r = bar.getBoundingClientRect();
+      tooltip.style.display = "block";
+      tooltip.style.left = `${e.clientX - player.getBoundingClientRect().left - 40}px`;
+      const t = ((e.clientX - r.left) / r.width) * video.duration;
+      tooltip.querySelector(".ytp-tooltip-progress-bar-pill-time-stamp").textContent =
+        `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    });
+    bar.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
+
+    async function blobUrl(name) {
+      const res = await fetch(`/__media/${name}.wav`);
+      return URL.createObjectURL(await res.blob());
+    }
+
+    yt.ready = (async () => {
+      media.content = await blobUrl("content");
+      media.ad = await blobUrl("ad");
+      video.src = media.content;
+      await video.play();
+    })();
+
+    // Блок рекламы в середине видео: приходит отдельным запросом, в getPlayerResponse() его нет.
+    yt.loadAdBreak = async () => JSON.parse(await (await fetch("/__adbreak")).text());
+
+    yt.startAd = async ({ skippableAfter = 60000, layoutId = AD_LAYOUT } = {}) => {
+      currentLayout = layoutId;
+      yt.resume = video.currentTime;
+      player.classList.add("ad-showing");
+      video.src = media.ad;
+      await video.play();
+      yt.skipTimer = setTimeout(() => (skip.style.display = "block"), skippableAfter);
+    };
+
+    yt.nextAd = async () => {
+      video.src = media.ad;
+      await video.play();
+    };
+
+    yt.endAd = async () => {
+      clearTimeout(yt.skipTimer);
+      skip.style.display = "none";
+      player.classList.remove("ad-showing");
+      video.src = media.content;
+      video.currentTime = yt.resume;
+      await video.play();
+    };
+
+    skip.addEventListener("click", (e) => {
+      if (!e.isTrusted) return;
+      yt.skipClicks++;
+      yt.endAd();
+    });
+    video.addEventListener("ended", () => {
+      if (player.classList.contains("ad-showing")) yt.endAd();
+    });
+  </script>
+</body>
+</html>
