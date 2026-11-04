@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "UltraSkip",
-  "version": "1.1.0",
-  "description": "Мгновенно пропускает рекламу YouTube, вырезает спонсорские вставки, возвращает дизлайки, пропускает заставки Netflix.",
+  "name": "UltraTube",
+  "version": "1.2.0",
+  "description": "Пропускает рекламу YouTube, вырезает спонсорские вставки, скорость до 4×, дизлайки и удобства как в Premium.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -11,7 +11,7 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "UltraSkip",
+    "default_title": "UltraTube",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"

@@ -7,6 +7,8 @@ globalThis.US = {
     ytHideShorts: false,
     ytQuality: "auto",
     ytSpeed: null,
+    ytFastSpeed: true,
+    ytShortsAsVideo: false,
     ytHighlight: true,
     ytNonstop: true,
     ytNoAutoplay: false,
@@ -55,7 +57,9 @@ globalThis.US = {
     large: "480p",
   },
 
-  SPEEDS: [1, 1.25, 1.5, 1.75, 2],
+  SPEEDS: [1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4],
+  CHANNEL_SPEEDS: [1, 1.5, 2, 2.5, 3, 4],
+  MAX_RATE: 4,
 
   MODES: {
     auto: "Авто",

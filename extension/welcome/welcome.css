@@ -1,0 +1,247 @@
+:root {
+  --bg: #07070c;
+  --card: rgba(22, 22, 32, 0.72);
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #f4f4fa;
+  --muted: #9a9ab2;
+  --accent: #5b5cff;
+  --accent-2: #ff3d8b;
+  --amber: #ffc24d;
+  --gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg) url("background.webp") center top / cover no-repeat fixed;
+  color: var(--text);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 96px 20px 72px;
+  text-align: center;
+}
+
+.hero-icon {
+  filter: drop-shadow(0 18px 40px rgba(255, 61, 139, 0.35));
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  50% { transform: translateY(-8px); }
+}
+
+h1 {
+  margin-top: 22px;
+  font-size: clamp(44px, 7vw, 72px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.tagline {
+  max-width: 700px;
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: clamp(17px, 2.2vw, 20px);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.btn {
+  padding: 13px 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 650;
+  text-decoration: none;
+  backdrop-filter: blur(10px);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: var(--gradient);
+  box-shadow: 0 10px 30px rgba(255, 61, 139, 0.35);
+}
+
+.btn-primary:hover {
+  background: var(--gradient);
+  filter: brightness(1.08);
+}
+
+.version {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.section {
+  margin-bottom: 72px;
+}
+
+h2 {
+  margin-bottom: 24px;
+  font-size: clamp(26px, 3.4vw, 34px);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+h3 {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.step,
+.feature,
+.privacy {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--card);
+  backdrop-filter: blur(18px);
+}
+
+.step {
+  display: flex;
+  gap: 14px;
+  padding: 22px;
+}
+
+.step p,
+.feature p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14.5px;
+}
+
+.step-num {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--gradient);
+  font-weight: 750;
+}
+
+.step-status {
+  color: #4ee08f !important;
+  font-weight: 600;
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.feature {
+  padding: 22px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.feature:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+  border-radius: 13px;
+  background: var(--gradient);
+  box-shadow: 0 8px 22px rgba(91, 92, 255, 0.3);
+}
+
+.feature-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: #fff;
+}
+
+.feature:nth-child(4) .feature-icon,
+.feature:nth-child(6) .feature-icon {
+  background: linear-gradient(135deg, var(--amber), #ff8a3d);
+  box-shadow: 0 8px 22px rgba(255, 166, 61, 0.3);
+}
+
+.privacy {
+  max-width: 760px;
+  margin-right: auto;
+  margin-left: auto;
+  padding: 28px 30px;
+  text-align: center;
+}
+
+.privacy h2 {
+  margin-bottom: 10px;
+}
+
+.privacy p {
+  color: var(--muted);
+}
+
+.footer {
+  padding: 28px 20px 40px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .hero-icon {
+    animation: none;
+  }
+}
