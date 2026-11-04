@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Добро пожаловать в UltraTube</title>
+  <link rel="icon" href="../icons/icon32.png">
+  <link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+  <header class="hero">
+    <img class="hero-icon" src="../icons/icon128.png" width="112" height="112" alt="">
+    <h1>UltraTube</h1>
+    <p class="tagline">Реклама исчезает. Спонсоры пропускаются. Удобства как в Premium.</p>
+    <div class="actions">
+      <a class="btn btn-primary" href="https://www.youtube.com" target="_blank" rel="noopener">Открыть YouTube</a>
+      <a class="btn" href="#start">Как начать</a>
+    </div>
+    <p class="version">Версия <span id="version"></span></p>
+  </header>
+
+  <main>
+    <section id="start" class="section">
+      <h2>Три шага, и готово</h2>
+      <ol class="steps">
+        <li class="step" id="stepPin">
+          <span class="step-num">1</span>
+          <div>
+            <h3>Закрепите иконку</h3>
+            <p>Нажмите на значок пазла справа от адресной строки и на булавку рядом с UltraTube — так настройки будут под рукой.</p>
+            <p class="step-status" id="pinStatus" hidden>✓ Иконка уже на панели</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-num">2</span>
+          <div>
+            <h3>Откройте YouTube</h3>
+            <p>Всё работает само: реклама пропускается, вставки спонсоров вырезаются, дизлайки снова видны. Уже открытые вкладки YouTube перезагрузите.</p>
+          </div>
+        </li>
+        <li class="step">
+          <span class="step-num">3</span>
+          <div>
+            <h3>Настройте под себя</h3>
+            <p>В попапе — качество и скорость по умолчанию, своя скорость для каждого канала, что пропускать и что скрывать.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section">
+      <h2>Что умеет UltraTube</h2>
+      <div class="features">
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M5 5l8 7-8 7zM14 5h2.5v14H14z"/></svg></span>
+          <h3>Реклама исчезает</h3>
+          <p>Пропускается командой самого плеера за доли секунды — даже до кнопки «Пропустить». YouTube и YouTube Music.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v2.2H4zm0 5.9h10v2.2H4zm0 5.9h16V19H4z"/></svg></span>
+          <h3>Без спонсорских вставок</h3>
+          <p>Таймкоды из открытой базы SponsorBlock. Для каждой категории — пропускать, спрашивать или только отмечать.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span>
+          <h3>Скорость до 4×</h3>
+          <p>Прямо в меню скорости плеера и клавишами Shift+&gt; / Shift+&lt;. Плюс скорость по умолчанию и для каждого канала.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.9L22 9.6l-5.4 4.8L18.2 22 12 18.3 5.8 22l1.6-7.6L2 9.6l7.1-.7z"/></svg></span>
+          <h3>«К главному»</h3>
+          <p>Кнопка в плеере переносит к самому интересному моменту — по метке SponsorBlock или пику «самых пересматриваемых».</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M22 3h-4v12h4zM2 14a2 2 0 0 0 2 2h6.3l-1 4.6v.3a1.5 1.5 0 0 0 .5 1l1 1.1 5.6-5.6A2 2 0 0 0 17 16V5a2 2 0 0 0-2-2H6a2 2 0 0 0-1.8 1.2l-3 7.1c-.1.2-.2.5-.2.7z"/></svg></span>
+          <h3>Дизлайки вернулись</h3>
+          <p>Число дизлайков на кнопке под видео — по данным Return YouTube Dislike.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M3 5h18v11H3zm7 13h4v2h-4zM9 8v5l5-2.5z"/></svg></span>
+          <h3>Как в Premium</h3>
+          <p>Качество по умолчанию, без «Продолжить просмотр?», без автовоспроизведения и — по желанию — логотип Premium.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zm10 4a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 3l18 18-1.4 1.4-18-18z"/></svg></span>
+          <h3>Без отвлекающего</h3>
+          <p>Скрывайте ленту на главной, рекомендации, комментарии, карточки поверх видео и Shorts — каждое отдельно.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm2 6v8l6-4z"/></svg></span>
+          <h3>Shorts в обычном плеере</h3>
+          <p>С перемоткой, скоростью и всеми функциями UltraTube вместо вертикальной ленты.</p>
+        </article>
+        <article class="feature">
+          <span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M6 3h4l4 11V3h4v18h-4L10 10v11H6z"/></svg></span>
+          <h3>Netflix</h3>
+          <p>Пропуск заставки и «Ранее в сериале», по желанию — сразу следующая серия.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section privacy">
+      <h2>Приватно</h2>
+      <p>Никакой аналитики и своих серверов. Настройки и статистика хранятся в браузере. Сегменты SponsorBlock запрашиваются по префиксу хэша — сервер не узнаёт, какое видео вы смотрите. Дизлайки — только ID открытого видео, и это можно выключить.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a href="https://github.com/1magenative/ultratube" target="_blank" rel="noopener">GitHub</a> ·
+    Данные: <a href="https://sponsor.ajay.app" target="_blank" rel="noopener">SponsorBlock</a>,
+    <a href="https://returnyoutubedislike.com" target="_blank" rel="noopener">Return YouTube Dislike</a> ·
+    Не связано с YouTube, Google и Netflix
+  </footer>
+
+  <script src="welcome.js"></script>
+</body>
+</html>

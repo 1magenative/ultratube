@@ -6,8 +6,9 @@
   --text: #f3f3f8;
   --muted: #8d8da3;
   --faint: #5d5d70;
-  --accent: #8b6cff;
-  --accent-2: #ff4f8b;
+  --accent: #5b5cff;
+  --accent-2: #ff3d8b;
+  --amber: #ffc24d;
   --gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
   --switch-off: #2c2c38;
   --yt: #ff3b3b;
@@ -64,7 +65,7 @@ body {
 
 .brand img {
   border-radius: 9px;
-  box-shadow: 0 6px 18px rgba(139, 108, 255, 0.35);
+  box-shadow: 0 6px 18px rgba(91, 92, 255, 0.35);
 }
 
 h1 {
@@ -105,7 +106,7 @@ h1 {
 .power:has(input:checked) {
   background: var(--gradient);
   color: #fff;
-  box-shadow: 0 0 0 4px rgba(139, 108, 255, 0.18), 0 6px 18px rgba(255, 79, 139, 0.35);
+  box-shadow: 0 0 0 4px rgba(91, 92, 255, 0.18), 0 6px 18px rgba(255, 61, 139, 0.35);
 }
 
 .power:has(input:focus-visible) {
@@ -230,6 +231,87 @@ main {
   font-size: 11px;
 }
 
+/* ---------- Быстрые переключатели ---------- */
+
+.quick {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.quick-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 10px 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.quick-tile:hover {
+  background: var(--card-hover);
+}
+
+.quick-tile:active {
+  transform: scale(0.97);
+}
+
+.quick-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.quick-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--switch-off);
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.quick-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.quick-label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.quick-state {
+  margin-top: -6px;
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.quick-tile[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--card));
+}
+
+.quick-tile[aria-pressed="true"] .quick-icon {
+  background: var(--gradient);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 61, 139, 0.3);
+}
+
+.quick-tile[aria-pressed="true"] .quick-state {
+  color: var(--accent-2);
+}
+
 .chips-row {
   display: flex;
   flex-wrap: wrap;
@@ -257,8 +339,8 @@ button.chip-btn {
 
 .chip-accent {
   border-color: transparent;
-  background: var(--gradient);
-  color: #fff;
+  background: linear-gradient(135deg, var(--amber), #ff8a3d);
+  color: #2a1600;
 }
 
 .channel {
@@ -442,8 +524,8 @@ button.chip-btn {
   flex-direction: column;
   padding: 14px 14px 12px;
   background:
-    radial-gradient(120% 140% at 100% 0%, rgba(255, 79, 139, 0.16), transparent 55%),
-    radial-gradient(120% 140% at 0% 0%, rgba(139, 108, 255, 0.2), transparent 55%);
+    radial-gradient(120% 140% at 100% 0%, rgba(255, 61, 139, 0.16), transparent 55%),
+    radial-gradient(120% 140% at 0% 0%, rgba(91, 92, 255, 0.2), transparent 55%);
 }
 
 .label {
@@ -681,9 +763,9 @@ body.off .now {
 
 footer {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   padding: 14px 14px 16px;
   font-size: 11.5px;
 }

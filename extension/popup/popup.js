@@ -35,14 +35,19 @@ function renderSettings() {
     btn.setAttribute("aria-pressed", settings.sbModes[btn.dataset.category] === btn.dataset.mode);
   }
   for (const select of document.querySelectorAll("[data-setting-select]")) {
-    select.value = settings[select.dataset.settingSelect];
+    select.value = String(settings[select.dataset.settingSelect] ?? "");
+  }
+  for (const tile of document.querySelectorAll(".quick-tile")) {
+    const on = Boolean(settings[tile.dataset.key]);
+    tile.setAttribute("aria-pressed", on);
+    tile.querySelector(".quick-state").textContent = on ? "включено" : "выключено";
   }
   for (const btn of document.querySelectorAll("[data-choice] button")) {
     const key = btn.parentElement.dataset.choice;
     btn.setAttribute("aria-pressed", String(settings[key] ?? "") === btn.dataset.value);
   }
   document.body.classList.toggle("off", !settings.enabled);
-  $("#tagline").textContent = settings.enabled ? "Реклама, спонсоры, заставки" : "На паузе";
+  $("#tagline").textContent = settings.enabled ? "Всё лучшее для YouTube" : "На паузе";
 }
 
 function buildCategories() {
@@ -74,15 +79,48 @@ function buildPlayerControls() {
     save();
   });
 
-  const speed = document.querySelector('[data-choice="ytSpeed"]');
+  const speed = document.querySelector('[data-setting-select="ytSpeed"]');
   for (const value of [null, ...US.SPEEDS]) {
-    const btn = el("button", { type: "button" }, value == null ? "Не менять" : `${value}×`);
-    btn.dataset.value = value ?? "";
-    btn.addEventListener("click", () => {
-      settings.ytSpeed = value;
+    speed.append(el("option", { value: value ?? "" }, value == null ? "Не менять" : `${value.toLocaleString("ru")}×`));
+  }
+  speed.addEventListener("change", () => {
+    settings.ytSpeed = speed.value ? Number(speed.value) : null;
+    save();
+  });
+}
+
+const svgIcon = (d) => {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d);
+  svg.append(path);
+  return svg;
+};
+
+const QUICK = [
+  { key: "ytSkipAds", label: "Реклама", icon: "M5 5l8 7-8 7zM14 5h2.5v14H14z" },
+  { key: "sbEnabled", label: "Вставки", icon: "M4 5h16v2.2H4zm0 5.9h10v2.2H4zm0 5.9h16V19H4z" },
+  { key: "ytFastSpeed", label: "До 4×", icon: "M13 2 4 14h7l-1 8 9-12h-7z" },
+  { key: "ytDislikes", label: "Дизлайки", icon: "M22 3h-4v12h4zM2 14a2 2 0 0 0 2 2h6.3l-1 4.6v.3a1.5 1.5 0 0 0 .5 1l1 1.1 5.6-5.6A2 2 0 0 0 17 16V5a2 2 0 0 0-2-2H6a2 2 0 0 0-1.8 1.2l-3 7.1c-.1.2-.2.5-.2.7z" },
+  { key: "ytShortsAsVideo", label: "Shorts → видео", icon: "M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm2 6v8l6-4z" },
+  { key: "fakePremium", label: "Premium‑лого", icon: "M3 7.5l4.5 4 4.5-6.5 4.5 6.5 4.5-4L19 19H5z" },
+];
+
+function buildQuick() {
+  for (const { key, label, icon } of QUICK) {
+    const tile = el("button", { type: "button", className: "quick-tile" },
+      el("span", { className: "quick-icon" }, svgIcon(icon)),
+      el("span", { className: "quick-label" }, label),
+      el("span", { className: "quick-state" }));
+    tile.dataset.key = key;
+    tile.addEventListener("click", () => {
+      settings[key] = !settings[key];
       save();
+      refreshNow();
     });
-    speed.append(btn);
+    $("#quick").append(tile);
   }
 }
 
@@ -212,7 +250,7 @@ function renderNow(status, tab) {
 
 function renderNowBody(status, tab, box, note) {
   if (!settings.enabled) {
-    box.append(nowHead("UltraSkip на паузе", "idle"), note("Включите кнопкой справа вверху"));
+    box.append(nowHead("UltraTube на паузе", "idle"), note("Включите кнопкой справа вверху"));
     return;
   }
   if (!status) {
@@ -282,7 +320,7 @@ function renderNowBody(status, tab, box, note) {
   if (status.channel) {
     const current = channelSpeeds[status.channel.id]?.rate ?? null;
     const choice = el("div", { className: "choice small", role: "group", ariaLabel: "Скорость на канале" });
-    for (const value of [null, ...US.SPEEDS]) {
+    for (const value of [null, ...US.CHANNEL_SPEEDS]) {
       const btn = el("button", { type: "button" }, value == null ? "Обычная" : `${value}×`);
       btn.setAttribute("aria-pressed", current === value);
       btn.addEventListener("click", () => setChannelSpeed(status.channel, value));
@@ -300,6 +338,8 @@ function renderNowBody(status, tab, box, note) {
   settings = await US.getSettings();
   buildCategories();
   buildPlayerControls();
+  buildQuick();
+  $("#openWelcome").addEventListener("click", () => chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }));
   bindTabs();
   renderSettings();
   ({ channelSpeeds = {} } = await chrome.storage.local.get("channelSpeeds"));

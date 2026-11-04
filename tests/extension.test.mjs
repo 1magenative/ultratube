@@ -493,6 +493,66 @@ test("Fake Premium: надпись у логотипов YouTube и YouTube Musi
   await page.close();
 });
 
+test("скорость выше 2×: ряд UltraTube вместо Premium-кнопки, «+»/«−», возврат на «2,0», клавиши", async () => {
+  const page = await openYouTube();
+  const rate = () => page.evaluate(() => document.querySelector("video").playbackRate);
+  const display = () => page.evaluate(() => document.querySelector(".ytp-variable-speed-panel-display span").textContent);
+  await page.waitForSelector(".us-speed-chip");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById("premiumWrapper")).display), "none");
+  assert.deepEqual(await page.$$eval(".us-speed-chip", (els) => els.map((e) => e.textContent)), ["2,5", "3,0", "3,5", "4,0"]);
+
+  await page.click('.us-speed-chip:has-text("3,0")');
+  assert.equal(await rate(), 3);
+  await waitFor(async () => (await display()) === "3.00x");
+  assert.equal(await page.evaluate(() => document.querySelector(".ytp-menuitem-content").textContent), "3");
+  await page.click("#speedPlus");
+  assert.equal(await rate(), 3.25);
+  await page.click('.us-speed-chip:has-text("4,0")');
+  await page.click("#speedPlus");
+  assert.equal(await rate(), 4, "не выше 4×");
+  await page.click("#speedMinus");
+  assert.equal(await rate(), 3.75);
+  await page.click("#chip2");
+  assert.equal(await rate(), 2, "«2,0» работает, хотя плеер считает, что уже стоит 2×");
+  await waitFor(async () => (await display()) === "2.00x");
+  assert.equal(await page.evaluate(() => yt.upsell), 0);
+
+  await page.keyboard.press("Shift+Period");
+  assert.equal(await rate(), 2.25);
+  await page.keyboard.press("Shift+Comma");
+  assert.equal(await rate(), 2);
+  assert.ok(await page.evaluate(() => document.querySelector(".us-speed-bezel.us-show")), "подсказка скорости на видео");
+
+  await setSettings({ ytFastSpeed: false });
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-speed-chip")));
+  assert.notEqual(await page.evaluate(() => getComputedStyle(document.getElementById("premiumWrapper")).display), "none");
+  await setSettings({ ytFastSpeed: true });
+  await page.close();
+});
+
+test("Shorts в обычном плеере: адрес и ссылки по настройке", async () => {
+  await setSettings({ ytShortsAsVideo: true });
+  const page = await context.newPage();
+  await page.goto(`https://www.youtube.com/shorts/${VIDEO_ID}`);
+  await page.waitForURL(`**/watch?v=${VIDEO_ID}`);
+  await page.evaluate(() => yt.ready);
+  await page.click("#shortslink");
+  await page.waitForURL("**/watch?v=OTHERVIDEO1");
+
+  await setSettings({ ytShortsAsVideo: false });
+  await page.goto(`https://www.youtube.com/shorts/${VIDEO_ID}`);
+  await sleep(800);
+  assert.match(page.url(), /\/shorts\//, "без настройки Shorts остаются Shorts");
+  await page.close();
+});
+
+test("страница приветствия открывается при установке", async () => {
+  const welcome = await waitFor(() => context.pages().find((p) => p.url().endsWith("/welcome/welcome.html")));
+  assert.equal(await welcome.textContent("h1"), "UltraTube");
+  assert.match(await welcome.textContent("#version"), /^\d+\.\d+\.\d+$/);
+  assert.ok((await welcome.$$(".feature")).length >= 8);
+});
+
 test("YouTube Music: реклама тоже пропускается", async () => {
   const page = await context.newPage();
   await page.goto(`https://music.youtube.com/watch?v=${VIDEO_ID}`);
@@ -560,7 +620,7 @@ test("попап: статистика, статус вкладки, перек�
   await popup.click('.modes button[data-category="intro"][data-mode="auto"]');
   await popup.click('[data-tab="player"]');
   await popup.selectOption('[data-setting-select="ytQuality"]', "hd720");
-  await popup.click('[data-choice="ytSpeed"] button[data-value="1.25"]');
+  await popup.selectOption('[data-setting-select="ytSpeed"]', "1.25");
   const saved = await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings);
   assert.equal(saved.ytHideShorts, true);
   assert.equal(saved.sbModes.intro, "auto");
@@ -575,6 +635,12 @@ test("попап: статистика, статус вкладки, перек�
   await waitFor(() => yt.evaluate(() => document.querySelector("video").playbackRate === 2));
   await popup.click('.channel .choice button:has-text("Обычная")');
   await waitFor(() => yt.evaluate(() => document.querySelector("video").playbackRate === 1.25));
+
+  // Быстрые переключатели в «Обзоре».
+  await popup.click('.quick-tile[data-key="ytDislikes"]');
+  await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings.ytDislikes)) === false);
+  assert.equal(await popup.getAttribute('.quick-tile[data-key="ytDislikes"]', "aria-pressed"), "false");
+  await popup.click('.quick-tile[data-key="ytDislikes"]');
 
   await popup.click('.power');
   assert.equal(await popup.evaluate(() => document.body.classList.contains("off")), true);
