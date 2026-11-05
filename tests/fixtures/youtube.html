@@ -7,6 +7,8 @@
   <ytd-browse page-subtype="home"><div id="primary"><ytd-rich-grid-renderer id="homefeed">Лента</ytd-rich-grid-renderer></div></ytd-browse>
 
 
+  <ytd-watch-flexy id="watch"><div id="player" style="position:relative">
+  <div id="cinematics-container">кинорежим YouTube</div>
   <div id="movie_player" class="html5-video-player" style="position:relative;width:800px;height:450px;margin:40px;background:#000">
     <video class="html5-main-video" style="width:100%;height:100%"></video>
     <div class="ytp-chrome-bottom" style="position:absolute;left:12px;right:12px;bottom:44px;height:6px">
@@ -47,6 +49,8 @@
     </div>
     <button class="ytp-skip-ad-button" style="display:none;position:absolute;right:0;bottom:80px">Пропустить</button>
   </div>
+  </div></ytd-watch-flexy>
+  <ytd-masthead style="position:relative;display:block;height:56px"><div id="background" style="position:absolute;inset:0;background:#fff"></div></ytd-masthead>
 
   <ytd-watch-flexy>
     <ytd-watch-metadata>
@@ -168,8 +172,8 @@
     });
     bar.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
 
-    async function blobUrl(name) {
-      const res = await fetch(`/__media/${name}.wav`);
+    async function blobUrl(name, ext = "wav") {
+      const res = await fetch(`/__media/${name}.${ext}`);
       return URL.createObjectURL(await res.blob());
     }
 
@@ -182,6 +186,12 @@
 
     // Блок рекламы в середине видео: приходит отдельным запросом, в getPlayerResponse() его нет.
     yt.loadAdBreak = async () => JSON.parse(await (await fetch("/__adbreak")).text());
+
+    // Видео с настоящими кадрами (красная левая половина, синяя правая) — для подсветки.
+    yt.playColor = async () => {
+      video.src = await blobUrl("color", "webm");
+      await video.play();
+    };
 
     yt.startAd = async ({ skippableAfter = 60000, layoutId = AD_LAYOUT } = {}) => {
       currentLayout = layoutId;

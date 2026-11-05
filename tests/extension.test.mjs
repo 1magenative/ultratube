@@ -31,7 +31,7 @@ function wav(seconds, rate = 8000) {
   return Buffer.concat([header, data]);
 }
 
-const media = { content: wav(120), ad: wav(30) };
+const media = { content: wav(120), ad: wav(30), color: null };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, { timeout = 5000, interval = 100 } = {}) {
@@ -76,6 +76,10 @@ before(async () => {
     const url = new URL(route.request().url());
     const name = url.pathname.match(/^\/__media\/(\w+)\.wav$/)?.[1];
     if (name) return route.fulfill({ body: media[name], contentType: "audio/wav" });
+    if (url.pathname === "/__media/color.webm") return route.fulfill({ body: media.color, contentType: "video/webm" });
+    if (url.hostname === "music.youtube.com" && url.pathname === "/ambient") {
+      return route.fulfill({ body: await readFile(new URL("music.html", FIXTURES)), contentType: "text/html" });
+    }
     if (url.pathname === "/__adbreak") {
       return route.fulfill({
         contentType: "application/json",
@@ -115,6 +119,36 @@ before(async () => {
       ]),
     });
   });
+
+  // Короткий ролик с настоящими кадрами: браузер сам записывает его из canvas.
+  const recorder = await context.newPage();
+  media.color = Buffer.from(await recorder.evaluate(async () => {
+    const canvas = Object.assign(document.createElement("canvas"), { width: 160, height: 90 });
+    const ctx = canvas.getContext("2d");
+    const rec = new MediaRecorder(canvas.captureStream(15), { mimeType: "video/webm;codecs=vp8" });
+    const chunks = [];
+    rec.ondataavailable = (e) => chunks.push(e.data);
+    rec.start();
+    const until = performance.now() + 1500;
+    await new Promise((done) => {
+      const draw = () => {
+        ctx.fillStyle = "#ff2000";
+        ctx.fillRect(0, 0, 80, 90);
+        ctx.fillStyle = "#0040ff";
+        ctx.fillRect(80, 0, 80, 90);
+        if (performance.now() < until) requestAnimationFrame(draw);
+        else done();
+      };
+      draw();
+    });
+    rec.stop();
+    await new Promise((r) => (rec.onstop = r));
+    const bytes = new Uint8Array(await new Blob(chunks).arrayBuffer());
+    let s = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  }), "base64");
+  await recorder.close();
 
   worker = context.serviceWorkers()[0] ?? (await context.waitForEvent("serviceworker"));
   extId = new URL(worker.url()).host;
@@ -553,6 +587,54 @@ test("страница приветствия открывается при ус
   assert.ok((await welcome.$$(".feature")).length >= 8);
 });
 
+test("подсветка на YouTube: свечение в цветах кадра под плеером и в шапке, кинорежим YouTube скрыт", async () => {
+  const page = await openYouTube();
+  await page.evaluate(() => yt.playColor());
+  await sleep(400);
+  assert.equal(await page.evaluate(() => document.querySelector(".us-ambient")), null, "по умолчанию выключена");
+
+  await setSettings({ ambient: true, ambientStrength: 100 });
+  await waitFor(() => page.evaluate(() => document.querySelector("#player > .us-ambient.us-show")));
+  const colors = await page.evaluate(() => {
+    const c = document.querySelector(".us-ambient-canvas");
+    const px = (x) => [...c.getContext("2d").getImageData(x, 13, 1, 1).data.slice(0, 3)];
+    return { left: px(10), right: px(38) };
+  });
+  assert.ok(colors.left[0] > 180 && colors.left[2] < 90, `слева красный: ${colors.left}`);
+  assert.ok(colors.right[2] > 180 && colors.right[0] < 90, `справа синий: ${colors.right}`);
+  assert.ok(await page.evaluate(() => document.querySelector("ytd-masthead #background > .us-ambient-header.us-show")));
+  assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById("cinematics-container")).display), "none");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--us-ambient-opacity").trim()), "1.00");
+
+  // Во время рекламы её цвета не светим.
+  await page.evaluate(() => document.querySelector("#movie_player").classList.add("ad-showing"));
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient.us-show")));
+  await page.evaluate(() => document.querySelector("#movie_player").classList.remove("ad-showing"));
+
+  await setSettings({ ambient: false, ambientStrength: 70 });
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient")));
+  assert.notEqual(await page.evaluate(() => getComputedStyle(document.getElementById("cinematics-container")).display), "none");
+  await page.close();
+});
+
+test("подсветка в YouTube Music: по обложке трека, в шапке тоже", async () => {
+  await setSettings({ ambientMusic: true });
+  const page = await context.newPage();
+  await page.goto("https://music.youtube.com/ambient");
+  await waitFor(() => page.evaluate(() => document.querySelector("ytmusic-player > .us-ambient.us-show")));
+  const colors = await page.evaluate(() => {
+    const c = document.querySelector(".us-ambient-canvas");
+    const px = (x) => [...c.getContext("2d").getImageData(x, 13, 1, 1).data.slice(0, 3)];
+    return { left: px(10), right: px(38) };
+  });
+  assert.ok(colors.left[1] > 150 && colors.left[0] < 80, `слева зелёный: ${colors.left}`);
+  assert.ok(colors.right[0] > 200 && colors.right[1] > 160, `справа жёлтый: ${colors.right}`);
+  assert.ok(await page.evaluate(() => document.querySelector("ytmusic-nav-bar > .us-ambient-header.us-show")));
+  await setSettings({ ambientMusic: false });
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient")));
+  await page.close();
+});
+
 test("YouTube Music: реклама тоже пропускается", async () => {
   const page = await context.newPage();
   await page.goto(`https://music.youtube.com/watch?v=${VIDEO_ID}`);
@@ -613,6 +695,11 @@ test("попап: статистика, статус вкладки, перек�
   await popup.screenshot({ path: fileURLToPath(new URL("popup-light.png", SHOTS)), fullPage: true });
 
   await popup.click('[data-tab="view"]');
+  await popup.click('label:has([data-setting="ambient"])');
+  await popup.fill('[data-setting-range="ambientStrength"]', "40");
+  await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings.ambientStrength)) === 40);
+  assert.equal(await popup.textContent('[data-range-value="ambientStrength"]'), "40%");
+  await popup.click('label:has([data-setting="ambient"])');
   assert.equal(await popup.isVisible('[data-panel="view"]'), true);
   assert.equal(await popup.isVisible('[data-panel="overview"]'), false);
   await popup.click('label:has([data-setting="ytHideShorts"])');

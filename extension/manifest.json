@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UltraTube",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Пропускает рекламу YouTube, вырезает спонсорские вставки, скорость до 4×, дизлайки и удобства как в Premium.",
   "icons": {
     "16": "icons/icon16.png",
@@ -37,7 +37,8 @@
       ],
       "js": [
         "shared/defaults.js",
-        "content/youtube.js"
+        "content/youtube.js",
+        "content/ambient.js"
       ],
       "css": [
         "content/youtube.css"

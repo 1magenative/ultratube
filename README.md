@@ -50,6 +50,11 @@
 **Без отвлекающего**
 - Скрыть ленту на главной, рекомендации, комментарии, заставки и карточки поверх видео, Shorts — каждое отдельно.
 
+**Подсветка**
+- Свечение вокруг видео и в шапке в цветах кадра, как в Ambient light. Настройки: яркость, размер свечения, подсветка шапки.
+- **В YouTube Music тоже** — по клипу или по обложке трека; у Ambient light такой возможности нет.
+- Встроенный «кинематографический режим» YouTube при этом отключается, во время рекламы подсветка гаснет.
+
 **Логотип Premium**
 - По желанию — надпись «Premium» у логотипа YouTube и YouTube Music. Только оформление: подписка от этого не появляется.
 
@@ -57,7 +62,7 @@
 - Пропуск заставки и «Ранее в сериале», по желанию — сразу следующая серия.
 
 **Попап и страница приветствия**
-- Быстрые переключатели в «Обзоре»: реклама, вставки, скорость до 4×, дизлайки, Shorts → видео, логотип Premium.
+- Быстрые переключатели в «Обзоре»: подсветка, без пауз, без рекомендаций, реклама, вставки, скорость до 4×, дизлайки, Shorts → видео, логотип Premium.
 - Вкладки: Обзор · Реклама · Вставки · Плеер · Вид.
 - В «Обзоре» — вставки текущего видео (клик — перейти к вставке), «К главному», дизлайки, скорость для канала, сэкономленное время.
 - Светлая и тёмная тема.
@@ -133,6 +138,10 @@ YouTube игнорирует программные клики по кнопке
 
 Плеер YouTube держит свою скорость не выше 2× (3× у него — только для Premium), а сам `<video>` умеет до 16×. Расширение перехватывает кнопки скорости выше 2× (и любые кнопки, пока видео быстрее 2×: плеер считает, что стоит 2×, и «2,0» у него ничего бы не изменила), ставит скорость видео напрямую и показывает настоящее значение в панели и в меню.
 
+### Подсветка
+
+Кадр 15 раз в секунду рисуется в крошечный canvas (48×27), а CSS растягивает и размывает его за плеером и в шапке. Пиксели не читаются, поэтому подсветка работает и с обложками треков YouTube Music с другого домена. Когда видео на паузе, кадр не перерисовывается; когда вкладка скрыта — цикл стоит. Чтобы свечение было над фоном сайта, но под заголовком и колонкой справа, страница видео получает `isolation: isolate`, а подсветка — `z-index: -1`.
+
 ### Устройство
 
 ```
@@ -142,6 +151,7 @@ extension/
   shared/defaults.js       настройки по умолчанию, категории, форматирование времени
   content/youtube.js       реклама, вставки, «К главному», дизлайки, полоса, уведомления
   content/youtube-main.js  команды плеера: пропуск рекламы, качество, скорость, автовоспроизведение
+  content/ambient.js       подсветка вокруг видео для YouTube и YouTube Music
   content/youtube.css      скрытие промо, Shorts и отвлекающего, стили отрезков и уведомлений
   content/netflix.js       кнопки Netflix
   popup/                   интерфейс расширения
@@ -161,7 +171,7 @@ extension/
 ```bash
 npm install
 npx playwright install chromium
-npm test              # 27 автотестов в Chromium с загруженным расширением
+npm test              # 29 автотестов в Chromium с загруженным расширением
 npm run screenshots   # переснять скриншоты для README
 npm run pack          # собрать dist/ultratube-<версия>.zip для релиза
 npm run icons         # нарезать иконки из docs/brand (фон убирается автоматически)
@@ -174,7 +184,8 @@ npm run icons         # нарезать иконки из docs/brand (фон у
 - **SponsorBlock:** приватный запрос, отрезки и подсказка, автопропуск с отменой по Enter, режимы «Кнопка» и «Метка», смена видео без перезагрузки;
 - **плеер:** качество и скорость (общая и для канала), «К главному» из SponsorBlock и из графика, «Продолжить просмотр?», автовоспроизведение;
 - дизлайки, скрытие ленты, рекомендаций, комментариев и карточек, сетка главной без дыр, логотип Premium, YouTube Music, Netflix;
-- скорость выше 2× в панели и клавишами, Shorts в обычном плеере, страница приветствия, попап с вкладками и быстрыми переключателями.
+- скорость выше 2× в панели и клавишами, Shorts в обычном плеере, страница приветствия, попап с вкладками и быстрыми переключателями;
+- подсветка: цвета кадра под плеером и в шапке (по настоящему видео, записанному в тесте), обложка трека в YouTube Music, отключение во время рекламы.
 
 Проверки на живом YouTube (с `HEADED=1` — в видимом окне):
 - `node scripts/live-check.mjs <videoId> <секунда>` — пропуск вставки;
@@ -182,7 +193,8 @@ npm run icons         # нарезать иконки из docs/brand (фон у
 - `node scripts/live-ads.mjs <videoId>` — реклама;
 - `node scripts/live-features.mjs <videoId>` — качество, скорость, «К главному», дизлайки, автовоспроизведение, скрытие;
 - `node scripts/live-logo.mjs` — логотип Premium на YouTube и YouTube Music (`LIGHT=1` — светлая тема);
-- `node scripts/live-speed.mjs <videoId>` — скорость выше 2× в меню плеера и клавишами.
+- `node scripts/live-speed.mjs <videoId>` — скорость выше 2× в меню плеера и клавишами;
+- `node scripts/live-ambient.mjs <videoId>` — подсветка на YouTube и YouTube Music.
 
 ### Фирменный стиль
 
@@ -193,6 +205,10 @@ npm run icons         # нарезать иконки из docs/brand (фон у
 - YouTube регулярно меняет плеер. Если что-то перестало работать, начните с селекторов в начале [`content/youtube.js`](extension/content/youtube.js) и с [`content/youtube-main.js`](extension/content/youtube-main.js).
 - Расширение не блокирует сетевые запросы рекламы: реклама загружается, но пропускается.
 - Блокировка и пропуск рекламы нарушают условия использования YouTube. Расширение предназначено для личного использования.
+
+## Что дальше
+
+Идеи и планы — в [ROADMAP.md](ROADMAP.md): режим «Сеть» (обход замедления YouTube через локальный ByeDPI или свой прокси, только для доменов YouTube), белый список каналов, усилитель громкости и другое.
 
 ## Лицензия и благодарности
 
@@ -210,6 +226,7 @@ UltraTube (formerly UltraSkip) is a Manifest V3 Chrome extension that:
 - skips YouTube ads instantly through the player's own `onAdUxClicked("skip-button", layoutId)` command, because YouTube ignores synthetic clicks; it falls back to ×16 muted playback behind a cover;
 - skips sponsor segments using the [SponsorBlock](https://sponsor.ajay.app) database, with per-category modes (auto / ask / mark only / off), colored progress-bar segments and an undo toast;
 - adds Premium-like conveniences: YouTube Music ad skip, speeds up to 4× right in the player's speed menu, default quality, default and per-channel speed, a "jump to highlight" button, no "Continue watching?" pauses, autoplay off, Shorts in the regular player;
+- adds an ambient light glow around the video and in the header, on YouTube and YouTube Music (by the music video or the track cover);
 - shows dislike counts from Return YouTube Dislike and can hide the home feed, recommendations, comments, end cards and Shorts without leaving gaps in the grid;
 - can show a cosmetic "Premium" label next to the YouTube and YouTube Music logos;
 - skips Netflix intros and recaps.
