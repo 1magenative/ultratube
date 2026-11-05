@@ -1,6 +1,6 @@
 // Работает в мире страницы: только отсюда доступны методы плеера YouTube.
 // С content-скриптом общается через атрибуты <html>: data-us-config (настройки) и data-us-channel (канал видео),
-// а пропуск рекламы запрашивается событием ultraskip:skip-ad.
+// а пропуск рекламы запрашивается событием ultraskip:skip-ad. Громкость ролика для выравнивания — в data-us-loudness.
 (() => {
   if (window.__ultraSkipMain) return;
   window.__ultraSkipMain = true;
@@ -88,6 +88,7 @@
       applied.qualityTarget = null;
       applied.qualityUntil = Date.now() + 15000;
     }
+    if (prev.originalAudio !== config.originalAudio) applied.audioManual = false;
     if (prev.speed !== config.speed || JSON.stringify(prev.channelSpeeds) !== JSON.stringify(config.channelSpeeds)) {
       applied.speed = null;
     }
@@ -112,11 +113,18 @@
       ? JSON.stringify({ id: details.channelId, name: details.author, video: videoId })
       : "";
     if (root.dataset.usChannel !== channel) root.dataset.usChannel = channel;
+    // Насколько ролик громче (+) или тише (−) эталона YouTube, в дБ.
+    const loudness = details?.videoId === videoId ? player.getPlayerResponse?.()?.playerConfig?.audioConfig?.loudnessDb : undefined;
+    const loudnessText = Number.isFinite(loudness) ? String(loudness) : "";
+    if (root.dataset.usLoudness !== loudnessText) root.dataset.usLoudness = loudnessText;
 
     if (!videoId || !config.enabled || player.classList.contains("ad-showing")) return;
     if (applied.video !== videoId) {
       const now = Date.now();
-      applied = { video: videoId, qualityTarget: null, qualityUntil: now + 15000, speed: null, autonavUntil: now + 10000, autonavClick: 0 };
+      applied = {
+        video: videoId, qualityTarget: null, qualityUntil: now + 15000, speed: null, autonavUntil: now + 10000, autonavClick: 0,
+        audioManual: false, audioTry: 0,
+      };
     }
 
     // Список качеств YouTube отдаёт не сразу целиком — первые 15 секунд пересчитываем цель по актуальному списку.
@@ -137,6 +145,8 @@
       }
     }
 
+    if (config.originalAudio) keepOriginalAudio(player);
+
     // Переключатель автовоспроизведения реагирует на обычный клик. YouTube выставляет его состояние
     // не сразу, поэтому следим первые 10 секунд видео; потом не мешаем включить его вручную.
     if (config.noAutoplay && Date.now() < applied.autonavUntil && Date.now() - applied.autonavClick > 1500) {
@@ -148,6 +158,58 @@
     }
   }
   setInterval(tick, 500);
+
+  // ---------- Оригинальная звуковая дорожка ----------
+  // YouTube сам включает дубляж (в том числе ИИ-озвучку) на языке интерфейса. Тип дорожки зашит в её id:
+  // «251;<base64>», где внутри acont=original / dubbed / dubbed-auto, а у «стабильной громкости» ещё drc=1.
+
+  function trackTags(track) {
+    try {
+      const b64 = String(track?.id ?? "").split(";")[1].replace(/-/g, "+").replace(/_/g, "/");
+      return atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+    } catch {
+      return "";
+    }
+  }
+
+  function isOriginal(track) {
+    const tags = trackTags(track);
+    if (tags.includes("acont")) return /acont.{1,2}original/s.test(tags);
+    // Запасной путь: описание дорожки вида { id: "en-US.4", isAutoDubbed }, «.4» — оригинал.
+    const info = Object.values(track ?? {}).find((v) => v && typeof v === "object" && typeof v.id === "string" && "isAutoDubbed" in v);
+    return Boolean(info?.id.endsWith(".4"));
+  }
+
+  // Дорожку из меню плеера выбирает человек: если сразу после этого играет не оригинал — значит, так он и хотел.
+  let menuAt = 0;
+  const markMenu = (e) => {
+    if (e.target instanceof Element && e.target.closest(".ytp-settings-menu, .ytp-popup")) menuAt = Date.now();
+  };
+  document.addEventListener("pointerdown", markMenu, true);
+  document.addEventListener("keydown", markMenu, true);
+
+  // Следим всё видео, а не только начало: YouTube иногда возвращает дубляж через несколько секунд после нашего
+  // переключения (когда видео наконец начинает грузиться). Не мешаем только ручному выбору в меню.
+  function keepOriginalAudio(player) {
+    if (applied.audioManual) return;
+    const tracks = player.getAvailableAudioTracks?.() ?? [];
+    if (tracks.length < 2) return;
+    const current = player.getAudioTrack?.();
+    if (!current || isOriginal(current)) return;
+    if (Date.now() - menuAt < 5000) {
+      applied.audioManual = true;
+      return;
+    }
+    if (Date.now() - applied.audioTry < 1500) return;
+    const drc = trackTags(current).includes("drc");
+    const originals = tracks.filter(isOriginal);
+    const target = originals.find((t) => trackTags(t).includes("drc") === drc) ?? originals[0];
+    if (!target) return;
+    applied.audioTry = Date.now();
+    try {
+      player.setAudioTrack(target);
+    } catch {}
+  }
 
   // Плеер YouTube не даёт скорость выше 2×, а сам <video> умеет до 16×. Для таких скоростей ставим плееру 2×,
   // чтобы его интерфейс был ближе к правде, а видео — нужную скорость напрямую.

@@ -623,12 +623,24 @@ test("подсветка на YouTube: свечение в цветах кадр
   await page.evaluate(() => (document.querySelector("#movie_player video").style.width = "100%"));
   await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient-fill.us-show")));
 
+  // Переключатель своей подсветки YouTube при нашей ничего не делает — он спрятан.
+  assert.equal(await page.evaluate(() => document.getElementById("yt-lighting").classList.contains("us-yt-hidden")), true);
+
   // Кнопка в плеере открывает панель: яркость меняется сразу и сохраняется.
-  await page.click(".ytp-right-controls > .us-ambient-btn");
+  await page.click(".ytp-right-controls-left > .us-ambient-btn");
   assert.ok(await page.isVisible("#movie_player > .us-ambient-panel"));
-  await page.fill('.us-ambient-panel [data-key="ambientStrength"]', "40");
+  await page.fill(".us-ambient-panel .us-ap-range >> nth=0", "40");
   assert.equal(await page.evaluate(() => document.querySelector(".us-ambient").style.getPropertyValue("--us-glow-opacity")), "0.52");
-  assert.equal(await page.textContent(".us-ambient-panel output"), "40%");
+  assert.equal(await page.inputValue(".us-ambient-panel .us-ap-num >> nth=0"), "40");
+  // Значение можно ввести с клавиатуры — целое, в пределах ползунка.
+  await page.click(".us-ambient-panel .us-ap-num >> nth=0");
+  await page.keyboard.type("63");
+  await page.keyboard.press("Enter");
+  await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings.ambientStrength)) === 63);
+  assert.equal(await page.inputValue(".us-ambient-panel .us-ap-range >> nth=0"), "63");
+  await page.click(".us-ambient-panel .us-ap-num >> nth=0");
+  await page.keyboard.type("40");
+  await page.keyboard.press("Enter");
   await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings.ambientStrength)) === 40);
   assert.equal(await page.evaluate(() => document.querySelector("#movie_player video").paused), false, "клики в панели не ставят видео на паузу");
   await page.mouse.click(5, 5);
@@ -692,6 +704,107 @@ test("подсветка в YouTube Music: по обложке трека, в ш
   await page.keyboard.press("Escape");
   await setSettings({ ambientMusic: false, musicPulse: true });
   await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient")));
+  await page.close();
+});
+
+test("оригинальная дорожка: дубляж и ИИ-озвучка сменяются оригиналом, ручной выбор потом не трогаем", async () => {
+  const page = await openYouTube();
+  await waitFor(() => page.evaluate(() => yt.audioTrack === yt.tracks.original));
+  assert.equal(await page.evaluate(() => yt.audioSwitches), 1);
+  // YouTube сам вернул дубляж через несколько секунд — снова ставим оригинал.
+  await page.evaluate(() => (yt.audioTrack = yt.tracks.dub));
+  await waitFor(() => page.evaluate(() => yt.audioTrack === yt.tracks.original));
+  // Пользователь сам выбрал немецкий в меню плеера — оставляем.
+  await page.evaluate(() => {
+    const player = document.querySelector("#movie_player");
+    const menu = document.createElement("div");
+    menu.className = "ytp-popup ytp-settings-menu";
+    player.append(menu);
+    menu.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    player.setAudioTrack(yt.tracks.german);
+  });
+  await sleep(2500);
+  assert.equal(await page.evaluate(() => yt.audioTrack === yt.tracks.german), true);
+  await page.close();
+
+  await setSettings({ ytOriginalAudio: false });
+  const off = await openYouTube();
+  await sleep(1500);
+  assert.equal(await off.evaluate(() => yt.audioSwitches), 0, "по настройке выключено");
+  await off.close();
+  await setSettings({ ytOriginalAudio: true });
+});
+
+test("звук: усиление, выравнивание, ночной режим и эквалайзер, панель в плеере", async () => {
+  const page = await openYouTube();
+  const audio = () => page.evaluate(() => JSON.parse(document.documentElement.dataset.usAudio || "null"));
+  await page.evaluate(() => (yt.loudness = -6));
+  await sleep(700);
+  assert.equal(await page.evaluate(() => document.querySelector(".us-audio-btn")), null, "пока всё выключено, кнопки нет");
+  assert.equal(await audio(), null, "и звук не трогаем");
+
+  await setSettings({ audioBoostOn: true, audioBoost: 200, audioNormalize: true, audioNight: true, audioEq: true, audioEqPreset: "bass" });
+  await page.mouse.click(880, 540);
+  await waitFor(async () => (await audio())?.gain === 3.99);
+  const state = await audio();
+  assert.equal(state.state, "running");
+  assert.equal(state.night, true);
+  assert.deepEqual(state.eq, [7, 4, 0, 0, 1]);
+  assert.equal(await page.evaluate(() => document.querySelector("#movie_player video").paused), false);
+
+  // Рекламу не усиливаем (команду пропуска плеер здесь игнорирует, чтобы реклама продержалась).
+  await page.evaluate(() => {
+    yt.noApi = true;
+    document.querySelector("#movie_player").classList.add("ad-showing");
+  });
+  await waitFor(async () => (await audio()).gain === 1);
+  await page.evaluate(() => {
+    yt.noApi = false;
+    document.querySelector("#movie_player").classList.remove("ad-showing");
+  });
+  await waitFor(async () => (await audio()).gain === 3.99);
+
+  // Панель «Звук»: громкость, готовая настройка и своя полоса эквалайзера.
+  await page.click(".ytp-right-controls-left > .us-audio-btn");
+  assert.ok(await page.isVisible("#movie_player > .us-audio-panel"));
+  assert.match(await page.textContent(".us-audio-panel .us-ap-note"), /6 дБ/);
+  await page.fill(".us-audio-panel .us-ap-range", "300");
+  await waitFor(async () => (await audio()).gain === 5.99);
+  await page.click('.us-audio-panel .us-eq-preset[data-preset="voice"]');
+  await waitFor(async () => JSON.stringify((await audio()).eq) === "[-4,-1,3,4,1]");
+  await page.fill(".us-audio-panel .us-eq-band >> nth=0", "10");
+  await waitFor(async () => (await audio()).eq[0] === 10);
+  // Полосу можно задать числом: лишнее прижимается к ±12 дБ, клавиши-цифры не перематывают видео.
+  const time = await page.evaluate(() => document.querySelector("#movie_player video").currentTime);
+  await page.click(".us-audio-panel .us-eq-col .us-ap-num >> nth=1");
+  await page.keyboard.type("-25");
+  await page.keyboard.press("Enter");
+  await waitFor(async () => (await audio()).eq[1] === -12);
+  assert.equal(await page.inputValue(".us-audio-panel .us-eq-col .us-ap-num >> nth=1"), "-12");
+  assert.ok(await page.evaluate((t) => Math.abs(document.querySelector("#movie_player video").currentTime - t) < 3, time));
+  await waitFor(async () => {
+    const s = await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings);
+    return s.audioBoost === 300 && s.audioEqPreset === "custom" && s.audioEqBands[0] === 10 && s.audioEqBands[1] === -12;
+  });
+  // Открытие подсветки закрывает панель звука.
+  await setSettings({ ambient: true });
+  await page.click(".ytp-right-controls-left > .us-ambient-btn");
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-audio-panel") && document.querySelector(".us-ambient-panel")));
+  await page.keyboard.press("Escape");
+  // Кнопки звука и подсветки стоят на месте и не переставляют друг друга (раньше из-за этого мигали).
+  const moves = await page.evaluate(() => new Promise((resolve) => {
+    let count = 0;
+    const observer = new MutationObserver((records) => {
+      count += records.filter((r) => [...r.addedNodes].some((n) => n.classList?.contains("us-player-btn"))).length;
+    });
+    observer.observe(document.querySelector(".ytp-right-controls"), { childList: true, subtree: true });
+    setTimeout(() => resolve(count), 1500);
+  }));
+  assert.equal(moves, 0);
+
+  await setSettings({ ambient: false, audioBoostOn: false, audioBoost: 150, audioNormalize: false, audioNight: false, audioEq: false, audioEqPreset: "voice", audioEqBands: [0, 0, 0, 0, 0] });
+  await waitFor(async () => (await audio()).on === false && (await audio()).gain === 1);
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-audio-btn")));
   await page.close();
 });
 

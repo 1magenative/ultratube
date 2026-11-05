@@ -293,6 +293,11 @@ html.us-fast-speed .ytp-variable-speed-panel-preset-button-wrapper:has(.ytp-vari
   opacity: 1;
 }
 
+/* Подсветку наведения YouTube рисует кружком шириной с обычную кнопку — растягиваем на всю «К главному». */
+.us-highlight-btn::before {
+  width: calc(100% - 4px) !important;
+}
+
 .us-highlight-btn svg,
 .us-highlight-btn svg path {
   width: 18px;
@@ -497,6 +502,11 @@ html.us-ambient-on :is(#cinematics-container, #cinematics-full-bleed-container) 
   display: none !important;
 }
 
+/* …и его переключатель в меню плеера: при нашей подсветке он ничего не делает. */
+.ytp-menuitem.us-yt-hidden {
+  display: none !important;
+}
+
 .us-ambient,
 .us-ambient-fill {
   position: absolute;
@@ -569,8 +579,8 @@ html.us-ambient-on ytd-masthead #background {
   overflow: hidden;
 }
 
-/* Кнопка подсветки в плеере */
-.us-ambient-btn {
+/* Кнопки UltraTube в плеере (подсветка, звук) */
+.us-player-btn {
   display: inline-flex !important;
   align-items: center;
   justify-content: center;
@@ -580,19 +590,19 @@ html.us-ambient-on ytd-masthead #background {
   cursor: pointer;
 }
 
-.us-ambient-btn svg {
+.us-player-btn svg {
   width: 24px;
   height: 24px;
   fill: currentColor;
 }
 
-.us-ambient-btn[aria-expanded="true"] svg,
-.us-ambient-btn:hover svg {
+.us-player-btn[aria-expanded="true"] svg,
+.us-player-btn:hover svg {
   fill: #ffc24d;
   filter: drop-shadow(0 0 5px rgba(255, 194, 77, 0.7));
 }
 
-.us-ambient-btn.us-music {
+.us-player-btn.us-music {
   width: 40px;
   height: 40px;
   margin: 0 4px;
@@ -601,13 +611,13 @@ html.us-ambient-on ytd-masthead #background {
   color: rgba(255, 255, 255, 0.7);
 }
 
-.us-ambient-btn.us-music:hover {
+.us-player-btn.us-music:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
 }
 
-/* Панель настройки подсветки */
-.us-ambient-panel {
+/* Панели настройки в плеере */
+.us-panel {
   position: absolute;
   right: 12px;
   bottom: 64px;
@@ -623,12 +633,15 @@ html.us-ambient-on ytd-masthead #background {
   text-align: left;
   backdrop-filter: blur(16px);
   cursor: default;
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
-.us-ambient-panel.us-music {
+.us-panel.us-music {
   position: fixed;
-  bottom: auto;
   z-index: 2200;
+  max-height: calc(100vh - 100px);
 }
 
 .us-ap-head {
@@ -660,9 +673,49 @@ html.us-ambient-on ytd-masthead #background {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.us-ap-label output {
+.us-ap-label {
+  align-items: center;
+}
+
+.us-ap-value {
+  display: inline-flex;
+  align-items: baseline;
   color: rgba(255, 255, 255, 0.55);
+}
+
+/* Число можно ввести с клавиатуры: выглядит как подпись, при наведении и фокусе — как поле. */
+.us-ap-num {
+  box-sizing: border-box;
+  width: 3.4em;
+  height: 24px;
+  margin: 0;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font: inherit;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+  cursor: text;
+}
+
+.us-ap-num:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.us-ap-num:focus {
+  border-color: #8b8cff;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.us-eq-col .us-ap-num {
+  width: 3em;
+  height: 22px;
+  padding: 0 2px;
+  text-align: center;
 }
 
 .us-ap-range {
@@ -740,4 +793,84 @@ html.us-ambient-on ytd-masthead #background {
 
 .us-ap-switch:checked::after {
   transform: translateX(14px);
+}
+
+
+.us-ap-toggle + .us-ap-toggle {
+  margin-top: 10px;
+}
+
+.us-ap-note {
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11.5px;
+}
+
+/* Эквалайзер */
+.us-eq-presets {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.us-eq-preset {
+  flex: 1;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  font: 500 11.5px/1 Roboto, Arial, sans-serif;
+  cursor: pointer;
+}
+
+.us-eq-preset:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.us-eq-preset[aria-pressed="true"] {
+  background: linear-gradient(135deg, #5b5cff, #ff3d8b);
+  color: #fff;
+}
+
+.us-eq-bands {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 0 4px;
+}
+
+.us-eq-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10.5px;
+}
+
+.us-eq-band {
+  width: 4px;
+  height: 84px;
+  margin: 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  cursor: pointer;
+}
+
+.us-eq-band::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  appearance: none;
+}
+
+.us-panel.us-eq-off :is(.us-eq-presets, .us-eq-bands) {
+  opacity: 0.4;
 }

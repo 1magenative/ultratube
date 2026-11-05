@@ -51,6 +51,7 @@
       channelSpeeds: Object.fromEntries(Object.entries(channelSpeeds).map(([id, c]) => [id, c.rate])),
       nonstop: settings.ytNonstop,
       noAutoplay: settings.ytNoAutoplay,
+      originalAudio: settings.ytOriginalAudio,
     });
   }
   applyClasses();

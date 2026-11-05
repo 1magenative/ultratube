@@ -131,6 +131,31 @@
         </div>
       </div>
 
+      <div class="group">
+        <h2><span class="tag tag-sound"></span>Звук</h2>
+        <div class="card list">
+          <label class="row">
+            <span class="row-text"><b>Оригинальная дорожка</b><small>Без автодубляжа и ИИ-озвучки на языке интерфейса</small></span>
+            <input type="checkbox" class="switch" data-setting="ytOriginalAudio">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Ночной режим</b><small>Тише взрывы и музыка, громче голоса</small></span>
+            <input type="checkbox" class="switch" data-setting="audioNight">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Выравнивание громкости</b><small>Тихие ролики — до уровня остальных</small></span>
+            <input type="checkbox" class="switch" data-setting="audioNormalize">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Эквалайзер</b><small>Полосы и громкость до 300% — кнопкой «Звук» в плеере</small></span>
+            <input type="checkbox" class="switch" data-setting="audioEq">
+          </label>
+          <div class="row" data-depends="audioEq">
+            <div class="choice small" data-choice="audioEqPreset" role="group" aria-label="Настройка эквалайзера" id="eqPresets"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="group" id="channelGroup" hidden>
         <h2><span class="tag tag-yt"></span>Скорость по каналам</h2>
         <div class="card list" id="channelList"></div>

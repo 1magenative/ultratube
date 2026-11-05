@@ -226,6 +226,10 @@ main {
   outline-offset: 1px;
 }
 
+#eqPresets {
+  flex: 1;
+}
+
 .choice.small button {
   padding: 4px 5px;
   font-size: 11px;
@@ -600,6 +604,7 @@ button.chip-btn {
 .tag-sb { background: var(--sb); }
 .tag-nf { background: var(--nf); }
 .tag-view { background: var(--accent); }
+.tag-sound { background: var(--amber); }
 
 .list {
   overflow: hidden;

@@ -52,8 +52,30 @@
     }
   }
 
+  // Своя подсветка YouTube («Профессиональное освещение») при нашей скрыта, и её переключатель в меню
+  // плеера ничего бы не делал — прячем пункт, чтобы не путал. Выключили нашу — пункт возвращается.
+  const isYouTubeLighting = (item) => /освещени|ambient|кинематограф|cinematic/i.test(item.querySelector(".ytp-menuitem-label")?.textContent ?? "")
+    || Boolean(item.querySelector(".ytp-menuitem-icon path")?.getAttribute("d")?.startsWith("M12 .5C11.73 .5 11.48"));
+  let watchedMenu = null;
+  const menuObserver = new MutationObserver(() => syncYouTubeLighting());
+  function syncYouTubeLighting() {
+    if (MUSIC) return;
+    const menu = document.querySelector("#movie_player .ytp-settings-menu");
+    if (!menu) return;
+    // Меню YouTube перестраивает пункты на лету — следим за ним самим, а не за всей страницей.
+    if (watchedMenu !== menu) {
+      watchedMenu = menu;
+      menuObserver.disconnect();
+      menuObserver.observe(menu, { childList: true, subtree: true });
+    }
+    for (const item of menu.querySelectorAll('.ytp-menuitem[role="menuitemcheckbox"]')) {
+      if (isYouTubeLighting(item)) item.classList.toggle("us-yt-hidden", on());
+    }
+  }
+
   function apply() {
     document.documentElement.classList.toggle("us-ambient-on", on());
+    syncYouTubeLighting();
     tune();
     syncPanel();
     if (on()) start();
@@ -123,8 +145,6 @@
   let lastCover = 0;
   let pulse = 0;
   let bassMean = 0.5;
-  const audio = { ctx: null, analyser: null, data: null, video: null, failed: false, busy: false, armed: false };
-
   function drawCover(img) {
     const d = Math.hypot(W, H) * 1.05;
     glowCtx.save();
@@ -134,55 +154,15 @@
     glowCtx.restore();
   }
 
-  // Звук пропускаем через Web Audio только после того, как пользователь хоть раз нажал на странице:
-  // без этого Chrome держит AudioContext на паузе, и подключённое к нему видео замолчало бы.
-  function armGesture() {
-    if (audio.armed) return;
-    audio.armed = true;
-    const retry = () => {
-      audio.armed = false;
-      window.removeEventListener("pointerdown", retry, true);
-      window.removeEventListener("keydown", retry, true);
-      if (audio.video) connectAudio(audio.video);
-    };
-    window.addEventListener("pointerdown", retry, true);
-    window.addEventListener("keydown", retry, true);
-  }
-
-  async function connectAudio(video) {
-    if (audio.analyser || audio.failed || audio.busy) return;
-    audio.video = video;
-    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return armGesture();
-    audio.busy = true;
-    try {
-      audio.ctx ??= new AudioContext();
-      const ctx = audio.ctx;
-      const running = ctx.state === "running"
-        || await Promise.race([ctx.resume().then(() => true), new Promise((r) => setTimeout(r, 500, false))]);
-      if (!running || ctx.state !== "running") return armGesture();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.5;
-      ctx.createMediaElementSource(video).connect(analyser);
-      analyser.connect(ctx.destination);
-      audio.analyser = analyser;
-      audio.data = new Uint8Array(analyser.frequencyBinCount);
-      ctx.addEventListener("statechange", () => {
-        if (ctx.state === "suspended") ctx.resume().catch(() => {});
-      });
-    } catch {
-      // Видео уже подключено к другому AudioContext (например, другим расширением) — без пульса.
-      audio.failed = true;
-    } finally {
-      audio.busy = false;
-    }
-  }
-
   // Басы (примерно 90–380 Гц) против их скользящего среднего: удар бочки — вспышка, затем плавное затухание.
-  function readPulse(dt) {
-    if (!audio.analyser) return 0;
-    audio.analyser.getByteFrequencyData(audio.data);
-    const bass = (audio.data[1] + audio.data[2] + audio.data[3] + audio.data[4]) / (4 * 255);
+  // Анализатор даёт общий звуковой модуль (audio.js): подключить видео к Web Audio можно только один раз.
+  let bins = null;
+  function readPulse(video, dt) {
+    const analyser = window.__usAudio?.analyser(video);
+    if (!analyser) return 0;
+    bins ??= new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(bins);
+    const bass = (bins[1] + bins[2] + bins[3] + bins[4]) / (4 * 255);
     bassMean += (bass - bassMean) * Math.min(1, dt * 1.5);
     const hit = Math.min(1, Math.max(0, (bass - bassMean) * 5));
     return Math.max(hit, pulse * Math.exp(-dt * 5));
@@ -210,7 +190,8 @@
     running = false;
     for (const node of layers) node.remove();
     hide();
-    removeButton();
+    panel.ensure(false);
+    syncYouTubeLighting();
   }
 
   function frame(now) {
@@ -221,7 +202,8 @@
     lastTime = now;
     if (now - lastUi > 500) {
       lastUi = now;
-      ensureButton();
+      panel.ensure(true);
+      syncYouTubeLighting();
     }
 
     const host = findPlayer();
@@ -229,8 +211,7 @@
     const pulsing = MUSIC && src?.kind === "cover" && settings.musicPulse && src.video && !src.video.paused;
     glow.classList.toggle("us-pulsing", Boolean(pulsing));
     if (pulsing) {
-      connectAudio(src.video);
-      setPulse(readPulse(dt));
+      setPulse(readPulse(src.video, dt));
     } else if (pulse) {
       setPulse(0);
     }
@@ -291,138 +272,44 @@
 
   // ---------- Кнопка и панель настройки в плеере ----------
 
-  const SVG = "http://www.w3.org/2000/svg";
-  function icon() {
-    const node = document.createElementNS(SVG, "svg");
-    node.setAttribute("viewBox", "0 0 24 24");
-    node.setAttribute("aria-hidden", "true");
-    const path = document.createElementNS(SVG, "path");
-    // Экран с лучами света вокруг.
-    path.setAttribute("d", "M7 8h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm4.25-6h1.5v3h-1.5V2Zm0 17h1.5v3h-1.5v-3ZM2 11.25h2.5v1.5H2v-1.5Zm17.5 0H22v1.5h-2.5v-1.5ZM4.4 5.46l1.06-1.06 1.77 1.77-1.06 1.06L4.4 5.46Zm12.37 12.37 1.06-1.06 1.77 1.77-1.06 1.06-1.77-1.77Zm1.06-13.43 1.06 1.06-1.77 1.77-1.06-1.06 1.77-1.77ZM5.46 19.6 4.4 18.54l1.77-1.77 1.06 1.06-1.77 1.77Z");
-    node.append(path);
-    return node;
-  }
-
-  function el(tag, className, ...children) {
-    const node = document.createElement(tag);
-    if (className) node.className = className;
-    node.append(...children);
-    return node;
-  }
-
-  const button = el("button", MUSIC ? "us-ambient-btn us-music" : "ytp-button us-ambient-btn", icon());
-  button.type = "button";
-  button.title = "Подсветка UltraTube";
-  button.setAttribute("aria-label", "Настроить подсветку");
-  button.setAttribute("aria-haspopup", "dialog");
-
-  function slider(key, label) {
-    const input = el("input", "us-ap-range");
-    Object.assign(input, { type: "range", min: 0, max: 100, step: 5 });
-    input.dataset.key = key;
-    input.setAttribute("aria-label", label);
-    const output = el("output", "");
-    const row = el("div", "us-ap-row", el("div", "us-ap-label", el("span", "", label), output), input);
-    input.addEventListener("input", () => {
-      settings[key] = Number(input.value);
+  const save = USUI.saver();
+  const strength = USUI.slider({
+    label: "Яркость",
+    onInput(value) {
+      settings[KEYS.strength] = value;
       tune();
-      syncPanel();
-      saveSoon();
-    });
-    return row;
-  }
-
-  const pulseToggle = el("input", "us-ap-switch");
-  pulseToggle.type = "checkbox";
-  pulseToggle.addEventListener("change", () => {
-    settings.musicPulse = pulseToggle.checked;
-    saveSoon();
+      save({ [KEYS.strength]: value });
+    },
+  });
+  const size = USUI.slider({
+    label: "Размер свечения",
+    onInput(value) {
+      settings[KEYS.size] = value;
+      tune();
+      save({ [KEYS.size]: value });
+    },
+  });
+  const pulseToggle = USUI.toggle({
+    label: "В такт музыке",
+    hint: "Обложка переливается и вспыхивает на басах",
+    onChange(on) {
+      settings.musicPulse = on;
+      save({ musicPulse: on });
+    },
   });
 
-  const panel = el("div", `us-ambient-panel${MUSIC ? " us-music" : ""}`,
-    el("div", "us-ap-head", el("b", "", "Подсветка"), el("span", "", "UltraTube")),
-    slider(KEYS.strength, "Яркость"),
-    slider(KEYS.size, "Размер свечения"),
-    ...(MUSIC
-      ? [el("label", "us-ap-toggle",
-        el("span", "", el("b", "", "В такт музыке"), el("small", "", "Обложка переливается и вспыхивает на басах")),
-        pulseToggle)]
-      : []));
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Подсветка");
-  // Клики и клавиши внутри панели не должны ставить видео на паузу или перематывать его.
-  for (const type of ["click", "dblclick", "mousedown", "pointerdown", "keydown", "wheel"]) {
-    panel.addEventListener(type, (e) => {
-      e.stopPropagation();
-      if (type === "keydown" && e.key === "Escape") closePanel();
-    });
-  }
+  const panel = USUI.playerPanel({
+    name: "ambient",
+    title: "Подсветка",
+    // Экран с лучами света вокруг.
+    iconPath: "M7 8h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Zm4.25-6h1.5v3h-1.5V2Zm0 17h1.5v3h-1.5v-3ZM2 11.25h2.5v1.5H2v-1.5Zm17.5 0H22v1.5h-2.5v-1.5ZM4.4 5.46l1.06-1.06 1.77 1.77-1.06 1.06L4.4 5.46Zm12.37 12.37 1.06-1.06 1.77 1.77-1.06 1.06-1.77-1.77Zm1.06-13.43 1.06 1.06-1.77 1.77-1.06-1.06 1.77-1.77ZM5.46 19.6 4.4 18.54l1.77-1.77 1.06 1.06-1.77 1.77Z",
+    children: [strength.row, size.row, ...(MUSIC ? [pulseToggle.row] : [])],
+  });
+  panel.onOpen = syncPanel;
 
   function syncPanel() {
-    for (const input of panel.querySelectorAll(".us-ap-range")) {
-      const value = settings[input.dataset.key];
-      if (document.activeElement !== input) input.value = value;
-      input.style.setProperty("--fill", `${value}%`);
-      input.previousElementSibling.querySelector("output").textContent = `${value}%`;
-    }
-    pulseToggle.checked = settings.musicPulse;
-  }
-
-  let saveTimer = 0;
-  function saveSoon() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => {
-      const current = await US.getSettings();
-      const patch = { [KEYS.strength]: settings[KEYS.strength], [KEYS.size]: settings[KEYS.size], musicPulse: settings.musicPulse };
-      await chrome.storage.sync.set({ settings: { ...current, ...patch } });
-    }, 300);
-  }
-
-  function openPanel() {
-    syncPanel();
-    if (MUSIC) {
-      document.body.append(panel);
-      const r = button.getBoundingClientRect();
-      panel.style.right = `${Math.max(8, innerWidth - r.right - 8)}px`;
-      panel.style.bottom = `${Math.max(8, innerHeight - r.top + 10)}px`;
-    } else {
-      document.querySelector("#movie_player")?.append(panel);
-    }
-    button.setAttribute("aria-expanded", "true");
-    document.addEventListener("pointerdown", outside, true);
-  }
-
-  function closePanel() {
-    panel.remove();
-    button.setAttribute("aria-expanded", "false");
-    document.removeEventListener("pointerdown", outside, true);
-  }
-
-  function outside(e) {
-    if (!panel.contains(e.target) && !button.contains(e.target)) closePanel();
-  }
-
-  button.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (panel.isConnected) closePanel();
-    else openPanel();
-  });
-
-  function ensureButton() {
-    // В узком окне YouTube Music прячет часть кнопок панели — тогда встаём просто в правую часть панели.
-    const visible = (selector) => [...document.querySelectorAll(selector)].find((node) => node.offsetWidth);
-    const host = MUSIC
-      ? visible("ytmusic-player-bar .right-controls-buttons") ?? visible("ytmusic-player-bar #right-controls")
-      : (location.pathname === "/watch" ? document.querySelector("#movie_player .ytp-right-controls") : null);
-    if (!host) return removeButton();
-    if (button.parentElement === host) return;
-    const anchor = MUSIC ? null : host.querySelector(".ytp-settings-button");
-    if (anchor) anchor.before(button);
-    else host.prepend(button);
-  }
-
-  function removeButton() {
-    closePanel();
-    button.remove();
+    strength.set(settings[KEYS.strength]);
+    size.set(settings[KEYS.size]);
+    pulseToggle.input.checked = settings.musicPulse;
   }
 })();
