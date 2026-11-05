@@ -31,6 +31,15 @@ function renderSettings() {
   for (const row of document.querySelectorAll("[data-depends]")) {
     row.classList.toggle("disabled", !settings[row.dataset.depends]);
   }
+  for (const row of document.querySelectorAll("[data-depends-any]")) {
+    row.classList.toggle("disabled", !row.dataset.dependsAny.split(" ").some((key) => settings[key]));
+  }
+  for (const range of document.querySelectorAll("[data-setting-range]")) {
+    const key = range.dataset.settingRange;
+    range.value = settings[key];
+    range.style.setProperty("--fill", `${settings[key]}%`);
+    document.querySelector(`[data-range-value="${key}"]`).textContent = `${settings[key]}%`;
+  }
   for (const btn of document.querySelectorAll(".modes button")) {
     btn.setAttribute("aria-pressed", settings.sbModes[btn.dataset.category] === btn.dataset.mode);
   }
@@ -100,6 +109,9 @@ const svgIcon = (d) => {
 };
 
 const QUICK = [
+  { key: "ambient", label: "Подсветка", icon: "M12 2a1 1 0 0 1 1 1v2a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1zm6.4 2.6a1 1 0 0 1 0 1.4L17 7.4A1 1 0 1 1 15.6 6L17 4.6a1 1 0 0 1 1.4 0zM5.6 4.6 7 6a1 1 0 0 1-1.4 1.4L4.2 6a1 1 0 0 1 1.4-1.4zM12 8a5 5 0 0 1 3 9v2a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2v-2a5 5 0 0 1 3-9z" },
+  { key: "ytNonstop", label: "Без пауз", icon: "M8 5v14l11-7z" },
+  { key: "hideRecs", label: "Без рекомендаций", icon: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zm10 4a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 3l18 18-1.4 1.4-18-18z" },
   { key: "ytSkipAds", label: "Реклама", icon: "M5 5l8 7-8 7zM14 5h2.5v14H14z" },
   { key: "sbEnabled", label: "Вставки", icon: "M4 5h16v2.2H4zm0 5.9h10v2.2H4zm0 5.9h16V19H4z" },
   { key: "ytFastSpeed", label: "До 4×", icon: "M13 2 4 14h7l-1 8 9-12h-7z" },
@@ -339,6 +351,12 @@ function renderNowBody(status, tab, box, note) {
   buildCategories();
   buildPlayerControls();
   buildQuick();
+  for (const range of document.querySelectorAll("[data-setting-range]")) {
+    range.addEventListener("input", () => {
+      settings[range.dataset.settingRange] = Number(range.value);
+      save();
+    });
+  }
   $("#openWelcome").addEventListener("click", () => chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }));
   bindTabs();
   renderSettings();

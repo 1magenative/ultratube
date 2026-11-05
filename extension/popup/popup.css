@@ -231,6 +231,43 @@ main {
   font-size: 11px;
 }
 
+/* ---------- Ползунки ---------- */
+
+.range-head {
+  flex-direction: row !important;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.range-head output {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.range {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)) no-repeat 0 0 / var(--fill, 50%) 100%, var(--switch-off);
+  appearance: none;
+  cursor: pointer;
+}
+
+.range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  appearance: none;
+}
+
+.range:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 /* ---------- Быстрые переключатели ---------- */
 
 .quick {

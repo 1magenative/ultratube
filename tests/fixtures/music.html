@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Mock YouTube Music</title></head>
+<body style="margin:0;background:#030303">
+  <ytmusic-nav-bar style="position:fixed;top:0;left:0;right:0;height:64px;z-index:5;display:block"></ytmusic-nav-bar>
+  <ytmusic-player-page style="position:fixed;top:64px;left:0;right:0;bottom:0;z-index:2;display:block;background:#030303">
+    <div id="main-panel" style="padding:80px">
+      <ytmusic-player id="player" style="position:relative;display:block;width:480px;height:270px">
+        <div id="song-image"><img alt="" style="width:270px;height:270px"></div>
+        <video style="display:none"></video>
+      </ytmusic-player>
+    </div>
+  </ytmusic-player-page>
+  <script>
+    // Обложка «трека»: зелёная слева, жёлтая справа.
+    const cover = document.createElement("canvas");
+    cover.width = cover.height = 120;
+    const ctx = cover.getContext("2d");
+    ctx.fillStyle = "#00c040";
+    ctx.fillRect(0, 0, 60, 120);
+    ctx.fillStyle = "#ffd000";
+    ctx.fillRect(60, 0, 60, 120);
+    document.querySelector("#song-image img").src = cover.toDataURL("image/png");
+  </script>
+</body>
+</html>

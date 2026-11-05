@@ -18,6 +18,11 @@ globalThis.US = {
     hideEndCards: false,
     hideHomeFeed: false,
     fakePremium: false,
+    ambient: false,
+    ambientMusic: false,
+    ambientStrength: 70,
+    ambientSize: 50,
+    ambientHeader: true,
     sbEnabled: true,
     sbModes: {
       sponsor: "auto",
