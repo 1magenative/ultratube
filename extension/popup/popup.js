@@ -34,12 +34,6 @@ function renderSettings() {
   for (const row of document.querySelectorAll("[data-depends-any]")) {
     row.classList.toggle("disabled", !row.dataset.dependsAny.split(" ").some((key) => settings[key]));
   }
-  for (const range of document.querySelectorAll("[data-setting-range]")) {
-    const key = range.dataset.settingRange;
-    range.value = settings[key];
-    range.style.setProperty("--fill", `${settings[key]}%`);
-    document.querySelector(`[data-range-value="${key}"]`).textContent = `${settings[key]}%`;
-  }
   for (const btn of document.querySelectorAll(".modes button")) {
     btn.setAttribute("aria-pressed", settings.sbModes[btn.dataset.category] === btn.dataset.mode);
   }
@@ -351,12 +345,6 @@ function renderNowBody(status, tab, box, note) {
   buildCategories();
   buildPlayerControls();
   buildQuick();
-  for (const range of document.querySelectorAll("[data-setting-range]")) {
-    range.addEventListener("input", () => {
-      settings[range.dataset.settingRange] = Number(range.value);
-      save();
-    });
-  }
   $("#openWelcome").addEventListener("click", () => chrome.tabs.create({ url: chrome.runtime.getURL("welcome/welcome.html") }));
   bindTabs();
   renderSettings();

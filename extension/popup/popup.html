@@ -191,21 +191,13 @@
         <h2><span class="tag tag-view"></span>Подсветка</h2>
         <div class="card list">
           <label class="row">
-            <span class="row-text"><b>Подсветка на YouTube</b><small>Свечение вокруг видео в цветах кадра, как Ambient light</small></span>
+            <span class="row-text"><b>Подсветка на YouTube</b><small>Свечение вокруг видео в цветах кадра. Яркость и размер — кнопкой в плеере</small></span>
             <input type="checkbox" class="switch" data-setting="ambient">
           </label>
           <label class="row">
-            <span class="row-text"><b>Подсветка в YouTube Music</b><small>По клипу или по обложке трека</small></span>
+            <span class="row-text"><b>Подсветка в YouTube Music</b><small>По клипу, а без клипа — по обложке, в такт музыке</small></span>
             <input type="checkbox" class="switch" data-setting="ambientMusic">
           </label>
-          <div class="row column" data-depends-any="ambient ambientMusic">
-            <span class="row-text range-head"><b>Яркость</b><output data-range-value="ambientStrength"></output></span>
-            <input type="range" class="range" min="0" max="100" step="5" data-setting-range="ambientStrength" aria-label="Яркость подсветки">
-          </div>
-          <div class="row column" data-depends-any="ambient ambientMusic">
-            <span class="row-text range-head"><b>Размер свечения</b><output data-range-value="ambientSize"></output></span>
-            <input type="range" class="range" min="0" max="100" step="5" data-setting-range="ambientSize" aria-label="Размер свечения">
-          </div>
           <label class="row" data-depends-any="ambient ambientMusic">
             <span class="row-text"><b>Подсветка шапки</b><small>Верх страницы в цветах кадра</small></span>
             <input type="checkbox" class="switch" data-setting="ambientHeader">

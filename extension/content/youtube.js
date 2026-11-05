@@ -662,7 +662,7 @@
     if (panel && !row) {
       row = h("div", "us-speed-chips", h("span", "us-speed-chips-label", "UltraTube"));
       for (const value of FAST_CHIPS) {
-        const btn = h("button", "ytp-button us-speed-chip", value.toLocaleString("ru", { minimumFractionDigits: 1 }));
+        const btn = h("button", "us-speed-chip", value.toLocaleString("ru", { minimumFractionDigits: 1 }));
         btn.type = "button";
         btn.dataset.rate = value;
         row.append(btn);

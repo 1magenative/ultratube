@@ -51,8 +51,9 @@
 - Скрыть ленту на главной, рекомендации, комментарии, заставки и карточки поверх видео, Shorts — каждое отдельно.
 
 **Подсветка**
-- Свечение вокруг видео и в шапке в цветах кадра, как в Ambient light. Настройки: яркость, размер свечения, подсветка шапки.
-- **В YouTube Music тоже** — по клипу или по обложке трека; у Ambient light такой возможности нет.
+- Свечение вокруг видео и в шапке в цветах кадра, как в Ambient light. В полноэкранном режиме и у видео 4:3 светятся и чёрные полосы.
+- Яркость и размер свечения настраиваются кнопкой прямо в плеере, рядом с шестерёнкой YouTube; в меню расширения — только включение и подсветка шапки.
+- **В YouTube Music тоже**: по клипу, а у трека без клипа — по обложке, которая медленно переливается и вспыхивает в такт басам. У Ambient light такого нет.
 - Встроенный «кинематографический режим» YouTube при этом отключается, во время рекламы подсветка гаснет.
 
 **Логотип Premium**
@@ -140,7 +141,9 @@ YouTube игнорирует программные клики по кнопке
 
 ### Подсветка
 
-Кадр 15 раз в секунду рисуется в крошечный canvas (48×27), а CSS растягивает и размывает его за плеером и в шапке. Пиксели не читаются, поэтому подсветка работает и с обложками треков YouTube Music с другого домена. Когда видео на паузе, кадр не перерисовывается; когда вкладка скрыта — цикл стоит. Чтобы свечение было над фоном сайта, но под заголовком и колонкой справа, страница видео получает `isolation: isolate`, а подсветка — `z-index: -1`.
+Кадр 15 раз в секунду рисуется в крошечный canvas (48×27), а CSS растягивает и размывает его за плеером, в чёрных полосах внутри плеера и в шапке. Пиксели не читаются, поэтому подсветка работает и с обложками треков YouTube Music с другого домена. Когда видео на паузе, кадр не перерисовывается; когда вкладка скрыта — цикл стоит. Чтобы свечение было над фоном сайта, но под заголовком и колонкой справа, страница видео получает `isolation: isolate`, а подсветка — `z-index: -1`. В YouTube Music коробка плеера непрозрачная и обрезает содержимое, поэтому свечение лежит рядом с ней, в странице плеера.
+
+Пульс в такт музыке: звук трека проходит через Web Audio (`AnalyserNode`), басы 90–380 Гц сравниваются со своим скользящим средним — удар бочки даёт вспышку, дальше она плавно гаснет. Звук подключается только после первого клика или нажатия клавиши на странице: без этого Chrome держит `AudioContext` на паузе, и подключённое видео замолчало бы.
 
 ### Устройство
 
@@ -185,7 +188,7 @@ npm run icons         # нарезать иконки из docs/brand (фон у
 - **плеер:** качество и скорость (общая и для канала), «К главному» из SponsorBlock и из графика, «Продолжить просмотр?», автовоспроизведение;
 - дизлайки, скрытие ленты, рекомендаций, комментариев и карточек, сетка главной без дыр, логотип Premium, YouTube Music, Netflix;
 - скорость выше 2× в панели и клавишами, Shorts в обычном плеере, страница приветствия, попап с вкладками и быстрыми переключателями;
-- подсветка: цвета кадра под плеером и в шапке (по настоящему видео, записанному в тесте), обложка трека в YouTube Music, отключение во время рекламы.
+- подсветка: цвета кадра под плеером, в чёрных полосах и в шапке (по настоящему видео, записанному в тесте), панель в плеере, обложка трека в YouTube Music с переливом и пульсом на «бочке», отключение во время рекламы.
 
 Проверки на живом YouTube (с `HEADED=1` — в видимом окне):
 - `node scripts/live-check.mjs <videoId> <секунда>` — пропуск вставки;
@@ -194,7 +197,7 @@ npm run icons         # нарезать иконки из docs/brand (фон у
 - `node scripts/live-features.mjs <videoId>` — качество, скорость, «К главному», дизлайки, автовоспроизведение, скрытие;
 - `node scripts/live-logo.mjs` — логотип Premium на YouTube и YouTube Music (`LIGHT=1` — светлая тема);
 - `node scripts/live-speed.mjs <videoId>` — скорость выше 2× в меню плеера и клавишами;
-- `node scripts/live-ambient.mjs <videoId>` — подсветка на YouTube и YouTube Music.
+- `node scripts/live-ambient.mjs <videoId> <трек без клипа>` — подсветка на YouTube (с панелью и полным экраном) и в YouTube Music (клип и обложка с пульсом).
 
 ### Фирменный стиль
 
@@ -226,7 +229,7 @@ UltraTube (formerly UltraSkip) is a Manifest V3 Chrome extension that:
 - skips YouTube ads instantly through the player's own `onAdUxClicked("skip-button", layoutId)` command, because YouTube ignores synthetic clicks; it falls back to ×16 muted playback behind a cover;
 - skips sponsor segments using the [SponsorBlock](https://sponsor.ajay.app) database, with per-category modes (auto / ask / mark only / off), colored progress-bar segments and an undo toast;
 - adds Premium-like conveniences: YouTube Music ad skip, speeds up to 4× right in the player's speed menu, default quality, default and per-channel speed, a "jump to highlight" button, no "Continue watching?" pauses, autoplay off, Shorts in the regular player;
-- adds an ambient light glow around the video and in the header, on YouTube and YouTube Music (by the music video or the track cover);
+- adds an ambient light glow around the video, in the letterbox bars and in the header, tuned from a button in the player; on YouTube Music it follows the music video, or the track cover that swirls and pulses to the bass;
 - shows dislike counts from Return YouTube Dislike and can hide the home feed, recommendations, comments, end cards and Shorts without leaving gaps in the grid;
 - can show a cosmetic "Premium" label next to the YouTube and YouTube Music logos;
 - skips Netflix intros and recaps.

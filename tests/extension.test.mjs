@@ -31,7 +31,17 @@ function wav(seconds, rate = 8000) {
   return Buffer.concat([header, data]);
 }
 
-const media = { content: wav(120), ad: wav(30), color: null };
+// «Бочка»: короткий удар 120 Гц каждые полсекунды — для подсветки в такт музыке.
+function beatWav(seconds, rate = 8000) {
+  const file = wav(seconds, rate);
+  for (let i = 0; i < seconds * rate; i++) {
+    const t = (i / rate) % 0.5;
+    if (t < 0.15) file[44 + i] = 128 + Math.round(120 * Math.sin(2 * Math.PI * 120 * t) * (1 - t / 0.15));
+  }
+  return file;
+}
+
+const media = { content: wav(120), ad: wav(30), beat: beatWav(20), color: null };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, { timeout = 5000, interval = 100 } = {}) {
@@ -604,7 +614,25 @@ test("подсветка на YouTube: свечение в цветах кадр
   assert.ok(colors.right[2] > 180 && colors.right[0] < 90, `справа синий: ${colors.right}`);
   assert.ok(await page.evaluate(() => document.querySelector("ytd-masthead #background > .us-ambient-header.us-show")));
   assert.equal(await page.evaluate(() => getComputedStyle(document.getElementById("cinematics-container")).display), "none");
-  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--us-ambient-opacity").trim()), "1.00");
+  assert.equal(await page.evaluate(() => document.querySelector(".us-ambient").style.getPropertyValue("--us-glow-opacity")), "1.00");
+  assert.equal(await page.evaluate(() => document.querySelector(".us-ambient-fill.us-show")), null, "видео во весь плеер — полос нет");
+
+  // Чёрные полосы внутри плеера (полный экран, 4:3) тоже светятся.
+  await page.evaluate(() => (document.querySelector("#movie_player video").style.width = "50%"));
+  await waitFor(() => page.evaluate(() => document.querySelector("#movie_player > .us-ambient-fill.us-show")));
+  await page.evaluate(() => (document.querySelector("#movie_player video").style.width = "100%"));
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient-fill.us-show")));
+
+  // Кнопка в плеере открывает панель: яркость меняется сразу и сохраняется.
+  await page.click(".ytp-right-controls > .us-ambient-btn");
+  assert.ok(await page.isVisible("#movie_player > .us-ambient-panel"));
+  await page.fill('.us-ambient-panel [data-key="ambientStrength"]', "40");
+  assert.equal(await page.evaluate(() => document.querySelector(".us-ambient").style.getPropertyValue("--us-glow-opacity")), "0.52");
+  assert.equal(await page.textContent(".us-ambient-panel output"), "40%");
+  await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings.ambientStrength)) === 40);
+  assert.equal(await page.evaluate(() => document.querySelector("#movie_player video").paused), false, "клики в панели не ставят видео на паузу");
+  await page.mouse.click(5, 5);
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient-panel")));
 
   // Во время рекламы её цвета не светим.
   await page.evaluate(() => document.querySelector("#movie_player").classList.add("ad-showing"));
@@ -613,15 +641,22 @@ test("подсветка на YouTube: свечение в цветах кадр
 
   await setSettings({ ambient: false, ambientStrength: 70 });
   await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient")));
+  assert.equal(await page.evaluate(() => document.querySelector(".us-ambient-btn")), null);
   assert.notEqual(await page.evaluate(() => getComputedStyle(document.getElementById("cinematics-container")).display), "none");
   await page.close();
 });
 
-test("подсветка в YouTube Music: по обложке трека, в шапке тоже", async () => {
+test("подсветка в YouTube Music: по обложке трека, в шапке, перелив и пульс в такт басам", async () => {
   await setSettings({ ambientMusic: true });
   const page = await context.newPage();
   await page.goto("https://music.youtube.com/ambient");
-  await waitFor(() => page.evaluate(() => document.querySelector("ytmusic-player > .us-ambient.us-show")));
+  await waitFor(() => page.evaluate(() => document.querySelector("ytmusic-player-page > .us-ambient.us-show")));
+  // Свечение лежит вокруг коробки плеера, а не внутри неё (там непрозрачный фон).
+  const boxes = await page.evaluate(() => [".us-ambient", "ytmusic-player"].map((s) => {
+    const r = document.querySelector(s).getBoundingClientRect();
+    return [r.x, r.y, r.width, r.height].map(Math.round).join(",");
+  }));
+  assert.equal(boxes[0], boxes[1]);
   const colors = await page.evaluate(() => {
     const c = document.querySelector(".us-ambient-canvas");
     const px = (x) => [...c.getContext("2d").getImageData(x, 13, 1, 1).data.slice(0, 3)];
@@ -630,7 +665,32 @@ test("подсветка в YouTube Music: по обложке трека, в ш
   assert.ok(colors.left[1] > 150 && colors.left[0] < 80, `слева зелёный: ${colors.left}`);
   assert.ok(colors.right[0] > 200 && colors.right[1] > 160, `справа жёлтый: ${colors.right}`);
   assert.ok(await page.evaluate(() => document.querySelector("ytmusic-nav-bar > .us-ambient-header.us-show")));
-  await setSettings({ ambientMusic: false });
+
+  // Трек играет: обложка медленно поворачивается, а на ударах свечение вспыхивает.
+  await page.mouse.click(700, 40);
+  await page.evaluate(() => playBeat());
+  const snapshot = () => page.evaluate(() => document.querySelector(".us-ambient-canvas").toDataURL());
+  const before = await snapshot();
+  let peak = 0;
+  for (let i = 0; i < 40; i++) {
+    peak = Math.max(peak, await page.evaluate(() => Number(document.querySelector(".us-ambient").style.getPropertyValue("--us-pulse")) || 0));
+    await sleep(50);
+  }
+  assert.ok(peak > 0.3, `пульс на ударах: ${peak}`);
+  assert.notEqual(await snapshot(), before, "обложка переливается");
+  assert.ok(await page.evaluate(() => {
+    const v = document.querySelector("ytmusic-player video");
+    return !v.paused && v.currentTime > 1;
+  }), "звук продолжает играть");
+
+  // Панель в YouTube Music — у кнопки в нижней панели плеера, с переключателем «В такт музыке».
+  await page.click("ytmusic-player-bar .us-ambient-btn");
+  assert.ok(await page.isVisible("body > .us-ambient-panel"));
+  await page.click(".us-ambient-panel .us-ap-toggle");
+  await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings.musicPulse)) === false);
+  await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient.us-pulsing")));
+  await page.keyboard.press("Escape");
+  await setSettings({ ambientMusic: false, musicPulse: true });
   await waitFor(() => page.evaluate(() => !document.querySelector(".us-ambient")));
   await page.close();
 });
@@ -695,11 +755,6 @@ test("попап: статистика, статус вкладки, перек�
   await popup.screenshot({ path: fileURLToPath(new URL("popup-light.png", SHOTS)), fullPage: true });
 
   await popup.click('[data-tab="view"]');
-  await popup.click('label:has([data-setting="ambient"])');
-  await popup.fill('[data-setting-range="ambientStrength"]', "40");
-  await waitFor(async () => (await worker.evaluate(async () => (await chrome.storage.sync.get("settings")).settings.ambientStrength)) === 40);
-  assert.equal(await popup.textContent('[data-range-value="ambientStrength"]'), "40%");
-  await popup.click('label:has([data-setting="ambient"])');
   assert.equal(await popup.isVisible('[data-panel="view"]'), true);
   assert.equal(await popup.isVisible('[data-panel="overview"]'), false);
   await popup.click('label:has([data-setting="ytHideShorts"])');

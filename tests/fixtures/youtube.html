@@ -198,13 +198,14 @@
       yt.resume = video.currentTime;
       player.classList.add("ad-showing");
       video.src = media.ad;
-      await video.play();
+      // Расширение может пропустить рекламу раньше, чем play() успеет начаться, — это не ошибка.
+      await video.play().catch(() => {});
       yt.skipTimer = setTimeout(() => (skip.style.display = "block"), skippableAfter);
     };
 
     yt.nextAd = async () => {
       video.src = media.ad;
-      await video.play();
+      await video.play().catch(() => {});
     };
 
     yt.endAd = async () => {

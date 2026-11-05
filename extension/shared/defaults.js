@@ -22,6 +22,9 @@ globalThis.US = {
     ambientMusic: false,
     ambientStrength: 70,
     ambientSize: 50,
+    musicStrength: 80,
+    musicSize: 60,
+    musicPulse: true,
     ambientHeader: true,
     sbEnabled: true,
     sbModes: {
