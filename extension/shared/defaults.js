@@ -12,6 +12,7 @@ globalThis.US = {
     ytHighlight: true,
     ytNonstop: true,
     ytNoAutoplay: false,
+    ytOriginalAudio: true,
     ytDislikes: true,
     hideRecs: false,
     hideComments: false,
@@ -22,6 +23,16 @@ globalThis.US = {
     ambientMusic: false,
     ambientStrength: 70,
     ambientSize: 50,
+    musicStrength: 80,
+    musicSize: 60,
+    musicPulse: true,
+    audioBoostOn: false,
+    audioBoost: 150,
+    audioNight: false,
+    audioNormalize: false,
+    audioEq: false,
+    audioEqPreset: "voice",
+    audioEqBands: [0, 0, 0, 0, 0],
     ambientHeader: true,
     sbEnabled: true,
     sbModes: {
@@ -65,6 +76,22 @@ globalThis.US = {
   SPEEDS: [1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4],
   CHANNEL_SPEEDS: [1, 1.5, 2, 2.5, 3, 4],
   MAX_RATE: 4,
+
+  // Эквалайзер: 5 полос (дБ) и готовые настройки.
+  EQ_BANDS: [
+    { freq: 60, type: "lowshelf", label: "60" },
+    { freq: 250, type: "peaking", label: "250" },
+    { freq: 1000, type: "peaking", label: "1к" },
+    { freq: 4000, type: "peaking", label: "4к" },
+    { freq: 12000, type: "highshelf", label: "12к" },
+  ],
+  EQ_PRESETS: {
+    flat: { name: "Ровно", bands: [0, 0, 0, 0, 0] },
+    voice: { name: "Голос", bands: [-4, -1, 3, 4, 1] },
+    bass: { name: "Басы", bands: [7, 4, 0, 0, 1] },
+    clarity: { name: "Чётко", bands: [-1, 0, 1, 4, 6] },
+    custom: { name: "Свой", bands: null },
+  },
 
   MODES: {
     auto: "Авто",

@@ -19,13 +19,16 @@
       </div>
       <div class="ytp-progress-bar" style="position:relative;height:100%;background:rgba(255,255,255,.25)"></div>
       <div class="ytp-right-controls" style="position:absolute;right:0;top:12px;display:flex">
-        <button class="ytp-autonav-toggle"><div class="ytp-autonav-toggle-button" aria-checked="true"></div></button>
+        <div class="ytp-right-controls-left" style="display:flex">
+          <button class="ytp-autonav-toggle"><div class="ytp-autonav-toggle-button" aria-checked="true"></div></button>
+          <button class="ytp-button ytp-settings-button" style="width:48px;height:40px">⚙</button>
+        </div>
       </div>
     </div>
     <div class="ytp-ce-element" id="endcard">Карточка</div>
     <div class="ytp-settings-menu" style="position:absolute;right:10px;bottom:60px;width:300px;height:250px;overflow:hidden;background:#222;color:#fff">
       <div class="ytp-popup-content"><div class="ytp-panel" style="height:250px">
-        <div class="ytp-panel-menu"><div class="ytp-menuitem"><div class="ytp-menuitem-label">Скорость воспроизведения</div><div class="ytp-menuitem-content">Обычная</div></div></div>
+        <div class="ytp-panel-menu"><div class="ytp-menuitem"><div class="ytp-menuitem-label">Скорость воспроизведения</div><div class="ytp-menuitem-content">Обычная</div></div><div class="ytp-menuitem" role="menuitemcheckbox" id="yt-lighting"><div class="ytp-menuitem-label">Профессиональное освещение</div></div></div>
         <div class="ytp-variable-speed-panel-content" style="height:193px">
           <div class="ytp-variable-speed-panel-display"><span>1.00x</span></div>
           <button class="ytp-button ytp-variable-speed-panel-increment-button" id="speedMinus"><span>-</span></button>
@@ -149,7 +152,24 @@
       videoDetails: { videoId: new URLSearchParams(location.search).get("v"), channelId: "UC_TEST", author: "Тестовый канал" },
       adSlots: [{ adSlotRenderer: { fulfillmentContent: { fulfilledLayout: { playerBytesAdLayoutRenderer: { adLayoutMetadata: { layoutId: AD_LAYOUT } } } } } }],
       other: { layoutId: "layout-something-else" },
+      playerConfig: { audioConfig: { loudnessDb: yt.loudness } },
     });
+
+    // Звуковые дорожки как у настоящего плеера: тип зашит в id «251;<base64>», а YouTube сам включает дубляж.
+    const trackId = (tags) => `251;${btoa(tags).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
+    yt.tracks = {
+      original: { id: trackId("\n\x11\n\x05acont\x12\x08original\n\x08\n\x03drc\x12\x011\n\n\n\x04lang\x12\x02en"), Pb: { name: "Английский (оригинальная)", id: "en.4", isDefault: false, isAutoDubbed: false } },
+      dub: { id: trackId("\n\x14\n\x05acont\x12\x0bdubbed-auto\n\n\n\x04lang\x12\x02ru"), Pb: { name: "Русский (озвучено автоматически)", id: "ru.10", isDefault: true, isAutoDubbed: true } },
+      german: { id: trackId("\n\x0f\n\x05acont\x12\x06dubbed\n\n\n\x04lang\x12\x02de"), Pb: { name: "Немецкий", id: "de.3", isDefault: false, isAutoDubbed: false } },
+    };
+    yt.audioTrack = yt.tracks.dub;
+    yt.audioSwitches = 0;
+    player.getAvailableAudioTracks = () => Object.values(yt.tracks);
+    player.getAudioTrack = () => yt.audioTrack;
+    player.setAudioTrack = (track) => {
+      yt.audioTrack = track;
+      yt.audioSwitches++;
+    };
     player.onAdUxClicked = (type, layoutId) => {
       if (yt.noApi) return;
       yt.apiCalls++;
@@ -198,13 +218,14 @@
       yt.resume = video.currentTime;
       player.classList.add("ad-showing");
       video.src = media.ad;
-      await video.play();
+      // Расширение может пропустить рекламу раньше, чем play() успеет начаться, — это не ошибка.
+      await video.play().catch(() => {});
       yt.skipTimer = setTimeout(() => (skip.style.display = "block"), skippableAfter);
     };
 
     yt.nextAd = async () => {
       video.src = media.ad;
-      await video.play();
+      await video.play().catch(() => {});
     };
 
     yt.endAd = async () => {

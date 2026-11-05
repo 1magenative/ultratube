@@ -131,6 +131,31 @@
         </div>
       </div>
 
+      <div class="group">
+        <h2><span class="tag tag-sound"></span>Звук</h2>
+        <div class="card list">
+          <label class="row">
+            <span class="row-text"><b>Оригинальная дорожка</b><small>Без автодубляжа и ИИ-озвучки на языке интерфейса</small></span>
+            <input type="checkbox" class="switch" data-setting="ytOriginalAudio">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Ночной режим</b><small>Тише взрывы и музыка, громче голоса</small></span>
+            <input type="checkbox" class="switch" data-setting="audioNight">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Выравнивание громкости</b><small>Тихие ролики — до уровня остальных</small></span>
+            <input type="checkbox" class="switch" data-setting="audioNormalize">
+          </label>
+          <label class="row">
+            <span class="row-text"><b>Эквалайзер</b><small>Полосы и громкость до 300% — кнопкой «Звук» в плеере</small></span>
+            <input type="checkbox" class="switch" data-setting="audioEq">
+          </label>
+          <div class="row" data-depends="audioEq">
+            <div class="choice small" data-choice="audioEqPreset" role="group" aria-label="Настройка эквалайзера" id="eqPresets"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="group" id="channelGroup" hidden>
         <h2><span class="tag tag-yt"></span>Скорость по каналам</h2>
         <div class="card list" id="channelList"></div>
@@ -191,21 +216,13 @@
         <h2><span class="tag tag-view"></span>Подсветка</h2>
         <div class="card list">
           <label class="row">
-            <span class="row-text"><b>Подсветка на YouTube</b><small>Свечение вокруг видео в цветах кадра, как Ambient light</small></span>
+            <span class="row-text"><b>Подсветка на YouTube</b><small>Свечение вокруг видео в цветах кадра. Яркость и размер — кнопкой в плеере</small></span>
             <input type="checkbox" class="switch" data-setting="ambient">
           </label>
           <label class="row">
-            <span class="row-text"><b>Подсветка в YouTube Music</b><small>По клипу или по обложке трека</small></span>
+            <span class="row-text"><b>Подсветка в YouTube Music</b><small>По клипу, а без клипа — по обложке, в такт музыке</small></span>
             <input type="checkbox" class="switch" data-setting="ambientMusic">
           </label>
-          <div class="row column" data-depends-any="ambient ambientMusic">
-            <span class="row-text range-head"><b>Яркость</b><output data-range-value="ambientStrength"></output></span>
-            <input type="range" class="range" min="0" max="100" step="5" data-setting-range="ambientStrength" aria-label="Яркость подсветки">
-          </div>
-          <div class="row column" data-depends-any="ambient ambientMusic">
-            <span class="row-text range-head"><b>Размер свечения</b><output data-range-value="ambientSize"></output></span>
-            <input type="range" class="range" min="0" max="100" step="5" data-setting-range="ambientSize" aria-label="Размер свечения">
-          </div>
           <label class="row" data-depends-any="ambient ambientMusic">
             <span class="row-text"><b>Подсветка шапки</b><small>Верх страницы в цветах кадра</small></span>
             <input type="checkbox" class="switch" data-setting="ambientHeader">

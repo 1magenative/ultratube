@@ -5,12 +5,15 @@
   <ytmusic-nav-bar style="position:fixed;top:0;left:0;right:0;height:64px;z-index:5;display:block"></ytmusic-nav-bar>
   <ytmusic-player-page style="position:fixed;top:64px;left:0;right:0;bottom:0;z-index:2;display:block;background:#030303">
     <div id="main-panel" style="padding:80px">
-      <ytmusic-player id="player" style="position:relative;display:block;width:480px;height:270px">
+      <ytmusic-player id="player" player-page-open style="position:relative;display:block;width:480px;height:270px;background:#606060">
         <div id="song-image"><img alt="" style="width:270px;height:270px"></div>
         <video style="display:none"></video>
       </ytmusic-player>
     </div>
   </ytmusic-player-page>
+  <ytmusic-player-bar style="position:fixed;left:0;right:0;bottom:0;height:72px;z-index:3;display:block;background:#212121">
+    <div class="right-controls-buttons" style="position:absolute;right:16px;top:16px;display:flex"><button class="repeat">↻</button></div>
+  </ytmusic-player-bar>
   <script>
     // Обложка «трека»: зелёная слева, жёлтая справа.
     const cover = document.createElement("canvas");
@@ -21,6 +24,12 @@
     ctx.fillStyle = "#ffd000";
     ctx.fillRect(60, 0, 60, 120);
     document.querySelector("#song-image img").src = cover.toDataURL("image/png");
+    // Трек без клипа: звук идёт через скрытое видео, как на сайте.
+    window.playBeat = async () => {
+      const video = document.querySelector("ytmusic-player video");
+      video.src = "/__media/beat.wav";
+      await video.play();
+    };
   </script>
 </body>
 </html>
